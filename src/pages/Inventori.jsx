@@ -5,6 +5,7 @@ import {
   faPlus,
   faEdit,
   faTrash,
+  faPrint,
 } from "@fortawesome/free-solid-svg-icons";
 import { getItems, deleteItem } from "../services/inventoriService";
 import { useNavigate } from "react-router-dom";
@@ -64,7 +65,9 @@ export default function Inventory() {
               {/* Daftar satuan */}
               {item.units && item.units.length > 0 ? (
                 <div className="mt-3">
-                  <p className="font-semibold text-gray-700">Detail per Satuan:</p>
+                  <p className="font-semibold text-gray-700">
+                    Detail per Satuan:
+                  </p>
                   <table className="w-full mt-1 border border-gray-300 text-sm">
                     <thead className="bg-gray-100">
                       <tr>
@@ -91,7 +94,9 @@ export default function Inventory() {
                   </table>
                 </div>
               ) : (
-                <p className="text-gray-500 italic mt-2">Belum ada satuan / harga jual.</p>
+                <p className="text-gray-500 italic mt-2">
+                  Belum ada satuan / harga jual.
+                </p>
               )}
             </div>
 
@@ -109,6 +114,12 @@ export default function Inventory() {
                 className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition flex items-center gap-1"
               >
                 <FontAwesomeIcon icon={faTrash} /> Hapus
+              </button>
+              <button
+                onClick={() => navigate("/cetak-barcode", { state: { item } })}
+                className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 transition flex items-center gap-1"
+              >
+                <FontAwesomeIcon icon={faPrint}/> Cetak
               </button>
             </div>
           </li>
