@@ -7,13 +7,13 @@ export default function TambahBarang() {
   const [formData, setFormData] = useState({
     name: "",
     stock: "",
-    purchasePrice: "",
     barcode: "",
+    note: "",
   });
 
   const [autoBarcode, setAutoBarcode] = useState(true);
-  const [sellPrices, setSellPrices] = useState([
-    { unit: "", price: "" },
+  const [prices, setPrices] = useState([
+    { unit: "", purchasePrice: "", sellPrice: "" },
   ]);
 
   const handleChange = (e) => {
@@ -23,20 +23,20 @@ export default function TambahBarang() {
     });
   };
 
-  const handleSellChange = (index, field, value) => {
-    const updated = [...sellPrices];
+  const handlePriceChange = (index, field, value) => {
+    const updated = [...prices];
     updated[index][field] = value;
-    setSellPrices(updated);
+    setPrices(updated);
   };
 
-  const handleAddSellPrice = () => {
-    setSellPrices([...sellPrices, { unit: "", price: "" }]);
+  const handleAddPrice = () => {
+    setPrices([...prices, { unit: "", purchasePrice: "", sellPrice: "" }]);
   };
 
-  const handleRemoveSellPrice = (index) => {
-    const updated = [...sellPrices];
+  const handleRemovePrice = (index) => {
+    const updated = [...prices];
     updated.splice(index, 1);
-    setSellPrices(updated);
+    setPrices(updated);
   };
 
   const generateBarcode = () => {
@@ -49,9 +49,11 @@ export default function TambahBarang() {
     const newItem = {
       name: formData.name,
       stock: parseInt(formData.stock),
-      purchasePrice: parseInt(formData.purchasePrice),
+      note: formData.note,
       barcode: autoBarcode ? generateBarcode() : formData.barcode,
-      sellPrices: sellPrices.filter((sp) => sp.unit && sp.price),
+      prices: prices.filter(
+        (p) => p.unit && p.purchasePrice && p.sellPrice
+      ),
     };
 
     await addItem(newItem);
@@ -80,15 +82,6 @@ export default function TambahBarang() {
           className="w-full p-2 border rounded"
         />
 
-        <input
-          name="purchasePrice"
-          type="number"
-          value={formData.purchasePrice}
-          onChange={handleChange}
-          placeholder="Harga Beli"
-          className="w-full p-2 border rounded"
-        />
-
         {/* Barcode */}
         <div className="flex items-center gap-2">
           <input
@@ -109,30 +102,41 @@ export default function TambahBarang() {
           />
         )}
 
-        {/* Harga jual */}
+        {/* Daftar harga per satuan */}
         <div className="border-t pt-4">
-          <h2 className="font-semibold mb-2">Harga Jual (per satuan)</h2>
+          <h2 className="font-semibold mb-2">Harga per Satuan</h2>
 
-          {sellPrices.map((sp, i) => (
-            <div key={i} className="flex gap-2 mb-2">
+          {prices.map((p, i) => (
+            <div key={i} className="flex gap-2 mb-2 flex-wrap">
               <input
                 type="text"
-                value={sp.unit}
-                onChange={(e) => handleSellChange(i, "unit", e.target.value)}
+                value={p.unit}
+                onChange={(e) => handlePriceChange(i, "unit", e.target.value)}
                 placeholder="Satuan (misal: 250gr / 1kg)"
-                className="w-1/2 p-2 border rounded"
+                className="flex-1 p-2 border rounded"
               />
               <input
                 type="number"
-                value={sp.price}
-                onChange={(e) => handleSellChange(i, "price", e.target.value)}
-                placeholder="Harga jual"
-                className="w-1/2 p-2 border rounded"
+                value={p.purchasePrice}
+                onChange={(e) =>
+                  handlePriceChange(i, "purchasePrice", e.target.value)
+                }
+                placeholder="Harga Beli"
+                className="flex-1 p-2 border rounded"
+              />
+              <input
+                type="number"
+                value={p.sellPrice}
+                onChange={(e) =>
+                  handlePriceChange(i, "sellPrice", e.target.value)
+                }
+                placeholder="Harga Jual"
+                className="flex-1 p-2 border rounded"
               />
               {i > 0 && (
                 <button
                   type="button"
-                  onClick={() => handleRemoveSellPrice(i)}
+                  onClick={() => handleRemovePrice(i)}
                   className="text-red-500 font-bold"
                 >
                   ×
@@ -143,13 +147,24 @@ export default function TambahBarang() {
 
           <button
             type="button"
-            onClick={handleAddSellPrice}
+            onClick={handleAddPrice}
             className="text-green-600 hover:underline"
           >
-            + Tambah Harga Jual
+            + Tambah Satuan Harga
           </button>
         </div>
 
+        {/* Kolom keterangan */}
+        <textarea
+          name="note"
+          value={formData.note}
+          onChange={handleChange}
+          placeholder="Keterangan (opsional)"
+          className="w-full p-2 border rounded"
+          rows={3}
+        />
+
+        {/* Tombol aksi */}
         <div className="flex justify-between mt-6">
           <button
             type="button"

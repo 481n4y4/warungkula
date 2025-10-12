@@ -9,7 +9,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 
-const COLLECTION_NAME = "inventory";
+const COLLECTION_NAME = "inventori";
 
 export const addItem = async (item) => {
   try {

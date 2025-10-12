@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faPlus, faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowLeft,
+  faPlus,
+  faEdit,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
 import { getItems, deleteItem } from "../services/inventoriService";
 import { useNavigate } from "react-router-dom";
 
@@ -55,7 +60,9 @@ export default function Inventory() {
             <div>
               <p className="font-semibold text-lg">{item.name}</p>
               <p>Stok: {item.stock}</p>
-              <p>Harga Beli: Rp {item.purchasePrice?.toLocaleString("id-ID")}</p>
+              <p>
+                Harga Beli: Rp {item.purchasePrice?.toLocaleString("id-ID")}
+              </p>
               <p>Barcode: {item.barcode}</p>
 
               {/* Harga jual per satuan */}
