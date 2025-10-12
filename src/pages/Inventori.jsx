@@ -51,39 +51,52 @@ export default function Inventory() {
       </div>
 
       {/* Daftar Barang */}
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {items.map((item) => (
           <li
             key={item.id}
-            className="flex justify-between items-start bg-white border p-3 rounded shadow-sm"
+            className="flex justify-between items-start bg-white border p-4 rounded shadow-sm"
           >
-            <div>
+            <div className="flex-1">
               <p className="font-semibold text-lg">{item.name}</p>
-              <p>Stok: {item.stock}</p>
-              <p>
-                Harga Beli: Rp {item.purchasePrice?.toLocaleString("id-ID")}
-              </p>
-              <p>Barcode: {item.barcode}</p>
+              <p className="text-gray-700">Barcode: {item.barcode}</p>
 
-              {/* Harga jual per satuan */}
-              {item.sellPrices && item.sellPrices.length > 0 ? (
-                <div className="mt-2">
-                  <p className="font-semibold text-gray-700">Harga Jual:</p>
-                  <ul className="ml-4 list-disc text-gray-600">
-                    {item.sellPrices.map((sp, i) => (
-                      <li key={i}>
-                        {sp.unit} — Rp {sp.price.toLocaleString("id-ID")}
-                      </li>
-                    ))}
-                  </ul>
+              {/* Daftar satuan */}
+              {item.units && item.units.length > 0 ? (
+                <div className="mt-3">
+                  <p className="font-semibold text-gray-700">Detail per Satuan:</p>
+                  <table className="w-full mt-1 border border-gray-300 text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border p-1 text-left">Satuan</th>
+                        <th className="border p-1 text-left">Harga Beli</th>
+                        <th className="border p-1 text-left">Harga Jual</th>
+                        <th className="border p-1 text-left">Stok</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {item.units.map((u, i) => (
+                        <tr key={i}>
+                          <td className="border p-1">{u.unit}</td>
+                          <td className="border p-1">
+                            Rp {u.purchasePrice?.toLocaleString("id-ID")}
+                          </td>
+                          <td className="border p-1">
+                            Rp {u.sellPrice?.toLocaleString("id-ID")}
+                          </td>
+                          <td className="border p-1">{u.stock}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <p className="text-gray-500 italic">Belum ada harga jual.</p>
+                <p className="text-gray-500 italic mt-2">Belum ada satuan / harga jual.</p>
               )}
             </div>
 
             {/* Tombol aksi */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 ml-4">
               <button
                 onClick={() => navigate(`/edit-barang/${item.id}`)}
                 className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition flex items-center gap-1"

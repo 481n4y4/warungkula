@@ -1,59 +1,65 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { addItem } from "../services/inventoriService";
+import { useNavigate } from "react-router-dom";
 
 export default function TambahBarang() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: "",
-    stock: "",
-    barcode: "",
-    note: "",
-  });
 
+  const [name, setName] = useState("");
+  const [barcode, setBarcode] = useState("");
   const [autoBarcode, setAutoBarcode] = useState(true);
-  const [prices, setPrices] = useState([
-    { unit: "", purchasePrice: "", sellPrice: "" },
+  const [description, setDescription] = useState("");
+  const [units, setUnits] = useState([
+    { unit: "", purchasePrice: "", sellPrice: "", stock: "" },
   ]);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handlePriceChange = (index, field, value) => {
-    const updated = [...prices];
-    updated[index][field] = value;
-    setPrices(updated);
-  };
-
-  const handleAddPrice = () => {
-    setPrices([...prices, { unit: "", purchasePrice: "", sellPrice: "" }]);
-  };
-
-  const handleRemovePrice = (index) => {
-    const updated = [...prices];
-    updated.splice(index, 1);
-    setPrices(updated);
-  };
-
+  // Fungsi generate barcode otomatis
   const generateBarcode = () => {
     return "BR" + Date.now();
   };
 
+  // Tambah unit baru
+  const handleAddUnit = () => {
+    setUnits([
+      ...units,
+      { unit: "", purchasePrice: "", sellPrice: "", stock: "" },
+    ]);
+  };
+
+  // Ubah data di tiap unit
+  const handleUnitChange = (index, field, value) => {
+    const updated = [...units];
+    updated[index][field] = value;
+    setUnits(updated);
+  };
+
+  // Hapus satu unit
+  const handleRemoveUnit = (index) => {
+    const updated = [...units];
+    updated.splice(index, 1);
+    setUnits(updated);
+  };
+
+  // Submit data
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const validUnits = units.filter(
+      (u) => u.unit && u.purchasePrice && u.sellPrice && u.stock
+    );
+
     const newItem = {
-      name: formData.name,
-      stock: parseInt(formData.stock),
-      note: formData.note,
-      barcode: autoBarcode ? generateBarcode() : formData.barcode,
-      prices: prices.filter(
-        (p) => p.unit && p.purchasePrice && p.sellPrice
-      ),
+      name,
+      barcode: autoBarcode ? generateBarcode() : barcode,
+      description,
+      units: validUnits.map((u) => ({
+        unit: u.unit,
+        purchasePrice: Number(u.purchasePrice),
+        sellPrice: Number(u.sellPrice),
+        stock: Number(u.stock),
+      })),
     };
 
     await addItem(newItem);
@@ -61,85 +67,114 @@ export default function TambahBarang() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Tambah Barang</h1>
+    <div className="p-6 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => navigate("/inventori")}
+          className="p-2 bg-green-500 rounded text-white hover:bg-green-600 transition"
+        >
+          <FontAwesomeIcon icon={faArrowLeft} /> Kembali
+        </button>
+        <h1 className="text-2xl font-bold">Tambah Barang</h1>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="Nama Barang"
-          className="w-full p-2 border rounded"
-        />
-
-        <input
-          name="stock"
-          type="number"
-          value={formData.stock}
-          onChange={handleChange}
-          placeholder="Stok Barang"
-          className="w-full p-2 border rounded"
-        />
-
-        {/* Barcode */}
-        <div className="flex items-center gap-2">
+      {/* Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 bg-white p-6 rounded shadow"
+      >
+        {/* Nama barang */}
+        <div>
+          <label className="block font-semibold mb-1">Nama Barang</label>
           <input
-            type="checkbox"
-            checked={autoBarcode}
-            onChange={() => setAutoBarcode(!autoBarcode)}
+            type="text"
+            className="border rounded w-full p-2"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
           />
-          <label>Barcode Otomatis</label>
         </div>
 
-        {!autoBarcode && (
-          <input
-            name="barcode"
-            value={formData.barcode}
-            onChange={handleChange}
-            placeholder="Masukkan Barcode"
-            className="w-full p-2 border rounded"
-          />
-        )}
+        {/* Barcode */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <input
+              type="checkbox"
+              checked={autoBarcode}
+              onChange={() => setAutoBarcode(!autoBarcode)}
+            />
+            <label className="font-semibold">Barcode Otomatis</label>
+          </div>
 
-        {/* Daftar harga per satuan */}
-        <div className="border-t pt-4">
-          <h2 className="font-semibold mb-2">Harga per Satuan</h2>
+          {!autoBarcode && (
+            <input
+              type="text"
+              placeholder="Masukkan Barcode"
+              className="border rounded w-full p-2"
+              value={barcode}
+              onChange={(e) => setBarcode(e.target.value)}
+              required
+            />
+          )}
+        </div>
 
-          {prices.map((p, i) => (
-            <div key={i} className="flex gap-2 mb-2 flex-wrap">
+        {/* Daftar satuan */}
+        <div>
+          <label className="block font-semibold mb-2">Detail per Satuan</label>
+
+          {units.map((u, index) => (
+            <div
+              key={index}
+              className="flex flex-wrap gap-2 mb-3 border p-3 rounded"
+            >
               <input
                 type="text"
-                value={p.unit}
-                onChange={(e) => handlePriceChange(i, "unit", e.target.value)}
-                placeholder="Satuan (misal: 250gr / 1kg)"
-                className="flex-1 p-2 border rounded"
+                placeholder="Satuan (contoh: pcs, dus)"
+                className="border rounded p-2 flex-1 min-w-[100px]"
+                value={u.unit}
+                onChange={(e) =>
+                  handleUnitChange(index, "unit", e.target.value)
+                }
+                required
               />
               <input
                 type="number"
-                value={p.purchasePrice}
-                onChange={(e) =>
-                  handlePriceChange(i, "purchasePrice", e.target.value)
-                }
                 placeholder="Harga Beli"
-                className="flex-1 p-2 border rounded"
+                className="border rounded p-2 flex-1 min-w-[100px]"
+                value={u.purchasePrice}
+                onChange={(e) =>
+                  handleUnitChange(index, "purchasePrice", e.target.value)
+                }
+                required
               />
               <input
                 type="number"
-                value={p.sellPrice}
-                onChange={(e) =>
-                  handlePriceChange(i, "sellPrice", e.target.value)
-                }
                 placeholder="Harga Jual"
-                className="flex-1 p-2 border rounded"
+                className="border rounded p-2 flex-1 min-w-[100px]"
+                value={u.sellPrice}
+                onChange={(e) =>
+                  handleUnitChange(index, "sellPrice", e.target.value)
+                }
+                required
               />
-              {i > 0 && (
+              <input
+                type="number"
+                placeholder="Stok"
+                className="border rounded p-2 flex-1 min-w-[100px]"
+                value={u.stock}
+                onChange={(e) =>
+                  handleUnitChange(index, "stock", e.target.value)
+                }
+                required
+              />
+              {index > 0 && (
                 <button
                   type="button"
-                  onClick={() => handleRemovePrice(i)}
-                  className="text-red-500 font-bold"
+                  onClick={() => handleRemoveUnit(index)}
+                  className="text-red-500 hover:text-red-700 ml-2"
                 >
-                  ×
+                  <FontAwesomeIcon icon={faTrash} />
                 </button>
               )}
             </div>
@@ -147,39 +182,32 @@ export default function TambahBarang() {
 
           <button
             type="button"
-            onClick={handleAddPrice}
-            className="text-green-600 hover:underline"
+            onClick={handleAddUnit}
+            className="mt-2 flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
           >
-            + Tambah Satuan Harga
+            <FontAwesomeIcon icon={faPlus} /> Tambah Satuan
           </button>
         </div>
 
-        {/* Kolom keterangan */}
-        <textarea
-          name="note"
-          value={formData.note}
-          onChange={handleChange}
-          placeholder="Keterangan (opsional)"
-          className="w-full p-2 border rounded"
-          rows={3}
-        />
-
-        {/* Tombol aksi */}
-        <div className="flex justify-between mt-6">
-          <button
-            type="button"
-            onClick={() => navigate("/inventori")}
-            className="bg-gray-400 text-white px-4 py-2 rounded"
-          >
-            Batal
-          </button>
-          <button
-            type="submit"
-            className="bg-green-500 text-white px-4 py-2 rounded"
-          >
-            Simpan Barang
-          </button>
+        {/* Keterangan */}
+        <div>
+          <label className="block font-semibold mb-1">Keterangan</label>
+          <textarea
+            className="border rounded w-full p-2"
+            placeholder="Tulis catatan atau deskripsi barang..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows="3"
+          />
         </div>
+
+        {/* Tombol simpan */}
+        <button
+          type="submit"
+          className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition font-semibold"
+        >
+          Simpan Barang
+        </button>
       </form>
     </div>
   );
