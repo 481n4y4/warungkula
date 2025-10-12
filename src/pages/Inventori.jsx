@@ -1,200 +1,140 @@
-import { useState, useEffect, useRef } from "react";
-import { db } from "../firebase/firebase";
+import React, { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-} from "firebase/firestore";
-import JsBarcode from "jsbarcode";
-import { useReactToPrint } from "react-to-print";
+  faArrowLeft,
+  faPlus,
+  faEdit,
+  faTrash,
+  faPrint,
+} from "@fortawesome/free-solid-svg-icons";
+import { getItems, deleteItem } from "../services/inventoriService";
 import { useNavigate } from "react-router-dom";
 
-export default function Inventori() {
-  const [nama, setNama] = useState("");
-  const [harga, setHarga] = useState("");
-  const [stok, setStok] = useState("");
-  const [produkList, setProdukList] = useState([]);
-  const barcodeRefs = useRef({});
+export default function Inventory() {
+  const [items, setItems] = useState([]);
   const navigate = useNavigate();
 
-  const produkCollection = collection(db, "produk");
+  const fetchItems = async () => {
+    const data = await getItems();
+    setItems(data || []);
+  };
 
-  // Ambil data produk dari Firestore
   useEffect(() => {
-    const ambilData = async () => {
-      const data = await getDocs(produkCollection);
-      setProdukList(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
-    };
-    ambilData();
+    fetchItems();
   }, []);
 
-  // Generate barcode setiap kali produkList berubah
-  useEffect(() => {
-    produkList.forEach((produk) => {
-      if (barcodeRefs.current[produk.id]) {
-        JsBarcode(barcodeRefs.current[produk.id], produk.barcode, {
-          format: "CODE128",
-          width: 2,
-          height: 50,
-          displayValue: true,
-        });
-      }
-    });
-  }, [produkList]);
-
-  // Tambah produk baru
-  const tambahProduk = async (e) => {
-    e.preventDefault();
-    if (!nama || !harga || !stok) return;
-
-    // Generate kode unik untuk barcode
-    const kode = "PRD-" + Date.now().toString().slice(-6);
-
-    await addDoc(produkCollection, {
-      nama,
-      harga: parseInt(harga),
-      stok: parseInt(stok),
-      barcode: kode,
-    });
-
-    setNama("");
-    setHarga("");
-    setStok("");
-
-    const data = await getDocs(produkCollection);
-    setProdukList(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+  const handleDelete = async (id) => {
+    if (!window.confirm("Yakin ingin menghapus barang ini?")) return;
+    await deleteItem(id);
+    fetchItems();
   };
-
-  // Hapus produk
-  const hapusProduk = async (id) => {
-    await deleteDoc(doc(db, "produk", id));
-    setProdukList(produkList.filter((p) => p.id !== id));
-  };
-
-  // Cetak barcode
-  const handlePrint = useReactToPrint({
-    content: () => document.getElementById("print-area"),
-  });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <nav className="bg-white shadow-md p-4 mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-blue-700">Inventori WarungGw</h1>
+    <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            <FontAwesomeIcon icon={faArrowLeft} /> <span>Kembali</span>
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+            Inventori Barang
+          </h1>
+        </div>
+
         <button
-          onClick={() => navigate("/dashboard")}
-          className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg"
+          onClick={() => navigate("/tambah-barang")}
+          className="bg-green-500 text-white px-3 py-2 sm:px-4 sm:py-2 rounded shadow hover:bg-green-600 transition text-sm sm:text-base w-full sm:w-auto"
         >
-          ⬅ Kembali
+          <FontAwesomeIcon icon={faPlus} /> <span>Tambah Barang</span>
         </button>
-      </nav>
-
-      {/* Form tambah produk */}
-      <form
-        onSubmit={tambahProduk}
-        className="bg-white shadow-md rounded-xl p-6 mb-8 max-w-lg mx-auto"
-      >
-        <h2 className="text-xl font-semibold mb-4">Tambah Produk</h2>
-        <div className="flex flex-col gap-3">
-          <input
-            type="text"
-            placeholder="Nama Produk"
-            className="border rounded-lg px-3 py-2"
-            value={nama}
-            onChange={(e) => setNama(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Harga"
-            className="border rounded-lg px-3 py-2"
-            value={harga}
-            onChange={(e) => setHarga(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Stok"
-            className="border rounded-lg px-3 py-2"
-            value={stok}
-            onChange={(e) => setStok(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition"
-          >
-            Tambah Produk
-          </button>
-        </div>
-      </form>
-
-      {/* Daftar Produk */}
-      <div className="bg-white shadow-md rounded-xl p-6">
-        <h2 className="text-xl font-semibold mb-4">Daftar Produk</h2>
-        {produkList.length === 0 ? (
-          <p className="text-gray-500">Belum ada produk ditambahkan.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200 text-gray-700">
-                  <th className="p-2 border">Nama</th>
-                  <th className="p-2 border">Harga</th>
-                  <th className="p-2 border">Stok</th>
-                  <th className="p-2 border">Barcode</th>
-                  <th className="p-2 border">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {produkList.map((produk) => (
-                  <tr key={produk.id} className="text-center">
-                    <td className="border p-2">{produk.nama}</td>
-                    <td className="border p-2">Rp {produk.harga.toLocaleString()}</td>
-                    <td className="border p-2">{produk.stok}</td>
-                    <td className="border p-2">
-                      <svg
-                        ref={(el) => (barcodeRefs.current[produk.id] = el)}
-                        className="mx-auto"
-                      ></svg>
-                    </td>
-                    <td className="border p-2">
-                      <button
-                        onClick={() => hapusProduk(produk.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
-                      >
-                        Hapus
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
-      {/* Tombol cetak semua barcode */}
-      {produkList.length > 0 && (
-        <div className="text-center mt-6">
-          <button
-            onClick={handlePrint}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+      {/* Daftar Barang */}
+      <ul className="space-y-4">
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="bg-white rounded-xl shadow-md p-4 sm:p-5 flex flex-col"
           >
-            Cetak Semua Barcode
-          </button>
-        </div>
-      )}
+            <div className="flex-1">
+              <p className="font-semibold text-lg text-gray-800">{item.name}</p>
+              <p className="text-gray-600 text-sm break-all">
+                Barcode: {item.barcode}
+              </p>
 
-      {/* Area print barcode */}
-      <div id="print-area" className="hidden">
-        {produkList.map((produk) => (
-          <div key={produk.id} className="p-4">
-            <svg
-              ref={(el) => JsBarcode(el, produk.barcode, { format: "CODE128", displayValue: true })}
-            ></svg>
-            <p>{produk.nama}</p>
-          </div>
+              {item.units && item.units.length > 0 ? (
+                <div className="mt-3">
+                  <p className="font-semibold text-gray-700 mb-1">
+                    Detail per Satuan:
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border border-gray-300 text-sm min-w-[340px]">
+                      <thead className="bg-green-50">
+                        <tr>
+                          <th className="border p-1 text-left">Satuan</th>
+                          <th className="border p-1 text-left">Harga Beli</th>
+                          <th className="border p-1 text-left">Harga Jual</th>
+                          <th className="border p-1 text-left">Stok</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.units.map((u, i) => (
+                          <tr key={i}>
+                            <td className="border p-1">{u.unit}</td>
+                            <td className="border p-1">
+                              Rp {u.purchasePrice?.toLocaleString("id-ID")}
+                            </td>
+                            <td className="border p-1">
+                              Rp {u.sellPrice?.toLocaleString("id-ID")}
+                            </td>
+                            <td className="border p-1">{u.stock}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 italic mt-2">
+                  Belum ada satuan / harga jual.
+                </p>
+              )}
+            </div>
+
+            {/* Tombol aksi */}
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-2 mt-4">
+              <button
+                onClick={() => navigate(`/edit-barang/${item.id}`)}
+                className="bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition flex items-center justify-center gap-1 text-sm sm:text-base"
+              >
+                <FontAwesomeIcon icon={faEdit} /> Edit
+              </button>
+
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 transition flex items-center justify-center gap-1 text-sm sm:text-base"
+              >
+                <FontAwesomeIcon icon={faTrash} /> Hapus
+              </button>
+
+              <button
+                onClick={() => navigate("/cetak-barcode", { state: { item } })}
+                className="bg-purple-500 text-white px-3 py-1.5 rounded hover:bg-purple-600 transition flex items-center justify-center gap-1 text-sm sm:text-base"
+              >
+                <FontAwesomeIcon icon={faPrint} /> Cetak
+              </button>
+            </div>
+          </li>
         ))}
-      </div>
+
+        {items.length === 0 && (
+          <p className="text-gray-500 italic text-center">Belum ada barang.</p>
+        )}
+      </ul>
     </div>
   );
 }

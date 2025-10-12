@@ -3,7 +3,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Inventori from "./pages/Inventori";
-import Kasir from "./pages/Kasir";
+import TambahBarang from "./pages/TambahBarang";
+import EditBarang from "./pages/EditBarang";
+import BarcodePrint from "./pages/BarcodePrint";
 
 export default function App() {
   return (
@@ -12,8 +14,10 @@ export default function App() {
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/inventori" element={<Inventori />}/>
-        <Route path="/kasir" element={<Kasir />} />
+        <Route path="/inventori" element={<Inventori />} />
+        <Route path="/tambah-barang" element={<TambahBarang />} />
+        <Route path="/edit-barang/:id" element={<EditBarang />} />
+        <Route path="/cetak-barcode" element={<BarcodePrint />} />
       </Routes>
     </Router>
   );
