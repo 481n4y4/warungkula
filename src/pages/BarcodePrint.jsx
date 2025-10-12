@@ -1,6 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import JsBarcode from "jsbarcode";
 import { useEffect, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 export default function BarcodePrint() {
   const location = useLocation();
@@ -43,7 +45,7 @@ export default function BarcodePrint() {
 
   if (!item) {
     return (
-      <div className="p-6">
+      <div className="p-6 text-center">
         <p>Data barang tidak ditemukan.</p>
         <button
           onClick={() => navigate(-1)}
@@ -56,26 +58,48 @@ export default function BarcodePrint() {
   }
 
   return (
-    <div className="p-6 print:p-0">
-      <h1 className="text-2xl font-bold mb-4">Cetak Barcode - {item.name}</h1>
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto print:p-0">
+      {/* Tombol kembali di atas */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate("/inventori")}
+            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition flex items-center gap-2 text-sm sm:text-base"
+          >
+            <FontAwesomeIcon icon={faArrowLeft} />
+            <span>Kembali</span>
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold mb-4 text-center sm:text-left">
+            Cetak Barcode - {item.name}
+          </h1>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print:grid-cols-4">
+      {/* Grid responsif */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 print:grid-cols-4">
         {item.units.map((unit, index) => (
           <div
             key={index}
-            className="border p-3 rounded shadow-sm text-center print:shadow-none flex flex-col items-center"
+            className="border p-3 sm:p-4 rounded-lg shadow-sm bg-white text-center 
+                       flex flex-col items-center justify-between 
+                       print:shadow-none print:border-0 print:p-0"
           >
-            <p className="font-semibold text-sm mb-1">
+            <p className="font-semibold text-sm sm:text-base mb-2">
               {item.name} ({unit.unit})
             </p>
-            <canvas
-              ref={(el) => (barcodeRefs.current[index] = el)}
-              width={250}
-              height={100}
-            />
+
+            {/* Responsive barcode */}
+            <div className="w-full flex justify-center">
+              <canvas
+                ref={(el) => (barcodeRefs.current[index] = el)}
+                className="w-full max-w-[250px] h-auto"
+              />
+            </div>
+
+            {/* Tombol download disembunyikan saat print */}
             <button
               onClick={() => handleDownload(index, unit)}
-              className="mt-2 bg-blue-500 text-white px-2 py-1 text-sm rounded hover:bg-blue-600 transition print:hidden"
+              className="mt-3 bg-blue-500 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-600 transition print:hidden w-full sm:w-auto"
             >
               Download
             </button>
@@ -83,18 +107,13 @@ export default function BarcodePrint() {
         ))}
       </div>
 
-      <div className="mt-6 flex gap-3 print:hidden">
+      {/* Tombol cetak di bawah */}
+      <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center sm:justify-start print:hidden">
         <button
           onClick={handlePrint}
-          className="bg-green-500 text-white px-4 py-2 rounded shadow hover:bg-green-600 transition"
+          className="bg-green-500 text-white px-4 py-2 rounded shadow hover:bg-green-600 transition w-full sm:w-auto"
         >
           Cetak Barcode
-        </button>
-        <button
-          onClick={() => navigate(-1)}
-          className="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 transition"
-        >
-          Kembali
         </button>
       </div>
     </div>

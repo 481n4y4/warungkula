@@ -15,34 +15,24 @@ export default function TambahBarang() {
     { unit: "", purchasePrice: "", sellPrice: "", stock: "" },
   ]);
 
-  // Fungsi generate barcode otomatis
-  const generateBarcode = () => {
-    return "BR" + Date.now();
-  };
+  const generateBarcode = () => "BR" + Date.now();
 
-  // Tambah unit baru
   const handleAddUnit = () => {
-    setUnits([
-      ...units,
-      { unit: "", purchasePrice: "", sellPrice: "", stock: "" },
-    ]);
+    setUnits([...units, { unit: "", purchasePrice: "", sellPrice: "", stock: "" }]);
   };
 
-  // Ubah data di tiap unit
   const handleUnitChange = (index, field, value) => {
     const updated = [...units];
     updated[index][field] = value;
     setUnits(updated);
   };
 
-  // Hapus satu unit
   const handleRemoveUnit = (index) => {
     const updated = [...units];
     updated.splice(index, 1);
     setUnits(updated);
   };
 
-  // Submit data
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -67,51 +57,59 @@ export default function TambahBarang() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-8">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="max-w-3xl mx-auto mb-8 flex items-center justify-between">
         <button
           onClick={() => navigate("/inventori")}
-          className="p-2 bg-green-500 rounded text-white hover:bg-green-600 transition"
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
         >
-          <FontAwesomeIcon icon={faArrowLeft} /> Kembali
+          <FontAwesomeIcon icon={faArrowLeft} />
+          <span>Kembali</span>
         </button>
-        <h1 className="text-2xl font-bold">Tambah Barang</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Tambah Barang</h1>
       </div>
 
       {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 bg-white p-6 rounded shadow"
+        className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6"
       >
         {/* Nama barang */}
         <div>
-          <label className="block font-semibold mb-1">Nama Barang</label>
+          <label className="block font-medium text-gray-700 mb-2">
+            Nama Barang
+          </label>
           <input
             type="text"
-            className="border rounded w-full p-2"
+            className="border border-gray-300 rounded-lg w-full p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            placeholder="Masukkan nama barang"
           />
         </div>
 
         {/* Barcode */}
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <label className="block font-medium text-gray-700 mb-2">
+            Pengaturan Barcode
+          </label>
+          <div className="flex items-center gap-2 mb-2">
             <input
               type="checkbox"
               checked={autoBarcode}
               onChange={() => setAutoBarcode(!autoBarcode)}
+              className="accent-green-600"
             />
-            <label className="font-semibold">Barcode Otomatis</label>
+            <span className="text-sm text-gray-600">Barcode Otomatis</span>
           </div>
 
           {!autoBarcode && (
             <input
               type="text"
-              placeholder="Masukkan Barcode"
-              className="border rounded w-full p-2"
+              placeholder="Masukkan barcode manual"
+              className="border border-gray-300 rounded-lg w-full p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
               value={barcode}
               onChange={(e) => setBarcode(e.target.value)}
               required
@@ -119,82 +117,81 @@ export default function TambahBarang() {
           )}
         </div>
 
-        {/* Daftar satuan */}
+        {/* Detail per satuan */}
         <div>
-          <label className="block font-semibold mb-2">Detail per Satuan</label>
+          <label className="block font-medium text-gray-700 mb-3">
+            Detail per Satuan
+          </label>
 
-          {units.map((u, index) => (
-            <div
-              key={index}
-              className="flex flex-wrap gap-2 mb-3 border p-3 rounded"
-            >
-              <input
-                type="text"
-                placeholder="Satuan (contoh: pcs, dus)"
-                className="border rounded p-2 flex-1 min-w-[100px]"
-                value={u.unit}
-                onChange={(e) =>
-                  handleUnitChange(index, "unit", e.target.value)
-                }
-                required
-              />
-              <input
-                type="number"
-                placeholder="Harga Beli"
-                className="border rounded p-2 flex-1 min-w-[100px]"
-                value={u.purchasePrice}
-                onChange={(e) =>
-                  handleUnitChange(index, "purchasePrice", e.target.value)
-                }
-                required
-              />
-              <input
-                type="number"
-                placeholder="Harga Jual"
-                className="border rounded p-2 flex-1 min-w-[100px]"
-                value={u.sellPrice}
-                onChange={(e) =>
-                  handleUnitChange(index, "sellPrice", e.target.value)
-                }
-                required
-              />
-              <input
-                type="number"
-                placeholder="Stok"
-                className="border rounded p-2 flex-1 min-w-[100px]"
-                value={u.stock}
-                onChange={(e) =>
-                  handleUnitChange(index, "stock", e.target.value)
-                }
-                required
-              />
-              {index > 0 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveUnit(index)}
-                  className="text-red-500 hover:text-red-700 ml-2"
-                >
-                  <FontAwesomeIcon icon={faTrash} />
-                </button>
-              )}
-            </div>
-          ))}
+          <div className="space-y-3">
+            {units.map((u, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-1 sm:grid-cols-5 gap-3 border border-gray-200 p-3 rounded-lg bg-gray-50"
+              >
+                <input
+                  type="text"
+                  placeholder="Satuan (contoh: pcs, dus)"
+                  className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  value={u.unit}
+                  onChange={(e) => handleUnitChange(index, "unit", e.target.value)}
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Harga Beli"
+                  className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  value={u.purchasePrice}
+                  onChange={(e) => handleUnitChange(index, "purchasePrice", e.target.value)}
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Harga Jual"
+                  className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  value={u.sellPrice}
+                  onChange={(e) => handleUnitChange(index, "sellPrice", e.target.value)}
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Stok"
+                  className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  value={u.stock}
+                  onChange={(e) => handleUnitChange(index, "stock", e.target.value)}
+                  required
+                />
+                {index > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveUnit(index)}
+                    className="text-red-500 hover:text-red-700 transition flex items-center justify-center"
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
 
           <button
             type="button"
             onClick={handleAddUnit}
-            className="mt-2 flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+            className="mt-3 flex items-center gap-2 text-sm bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
           >
-            <FontAwesomeIcon icon={faPlus} /> Tambah Satuan
+            <FontAwesomeIcon icon={faPlus} />
+            Tambah Satuan
           </button>
         </div>
 
         {/* Keterangan */}
         <div>
-          <label className="block font-semibold mb-1">Keterangan</label>
+          <label className="block font-medium text-gray-700 mb-2">
+            Keterangan
+          </label>
           <textarea
-            className="border rounded w-full p-2"
-            placeholder="Tulis catatan atau deskripsi barang..."
+            className="border border-gray-300 rounded-lg w-full p-2.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+            placeholder="Tulis deskripsi atau catatan barang..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows="3"
@@ -204,7 +201,7 @@ export default function TambahBarang() {
         {/* Tombol simpan */}
         <button
           type="submit"
-          className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition font-semibold"
+          className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
         >
           Simpan Barang
         </button>
