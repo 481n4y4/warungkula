@@ -28,7 +28,7 @@ export const db = getFirestore(app);
 
 // --- collection name constants (penting: didefinisikan) ---
 const PRODUCTS_COL = "inventori";
-const TRANSACTIONS_COL = "transactions";
+const TRANSACTIONS_COL = "transaksi";
 
 /**
  * Cari satu produk berdasarkan barcode (mengembalikan objek { id, ...data } atau null)
