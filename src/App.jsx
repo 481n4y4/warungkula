@@ -8,7 +8,7 @@ import EditBarang from "./pages/EditBarang";
 import BarcodePrint from "./pages/BarcodePrint";
 import Kasir from "./pages/Kasir";
 import Receipt from "./components/Receipt";
-
+import Laporan from "./pages/LaporanPenjualan"
 
 export default function App() {
   return (
@@ -23,6 +23,7 @@ export default function App() {
         <Route path="/cetak-barcode" element={<BarcodePrint />} />
         <Route path="/kasir" element={<Kasir />} />
         <Route path="/receipt" element={<Receipt />} />
+        <Route path="/laporan" element={<Laporan />} />
       </Routes>
     </Router>
   );
