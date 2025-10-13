@@ -14,12 +14,11 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-// ganti sesuai config projectmu (jangan commit ke public kalau sensitif)
 const firebaseConfig = {
   apiKey: "AIzaSyAtqfZw645PJ_5hJuqaid8zuRzFXPlYNHw",
   authDomain: "warungkula-54bf1.firebaseapp.com",
   projectId: "warungkula-54bf1",
-  storageBucket: "warungkula-54bf1.appspot.com", // <- perbaikan kecil
+  storageBucket: "warungkula-54bf1.appspot.com",
   messagingSenderId: "362575710267",
   appId: "1:362575710267:web:7cf748e11480680c43741e",
 };
@@ -31,14 +30,17 @@ export const provider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 
 // --- collection name constants (penting: didefinisikan) ---
-const PRODUCTS_COL = "products";
+const PRODUCTS_COL = "inventori";
 const TRANSACTIONS_COL = "transactions";
 
 /**
  * Cari satu produk berdasarkan barcode (mengembalikan objek { id, ...data } atau null)
  */
 export async function getProductByBarcode(barcode) {
-  const q = query(collection(db, "inventori"), where("barcode", "==", barcode));
+  const q = query(
+    collection(db, PRODUCTS_COL),
+    where("barcode", "==", barcode)
+  );
   const snapshot = await getDocs(q);
   if (snapshot.empty) return null;
   return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
@@ -52,9 +54,7 @@ export async function searchProductsByName(name) {
   const snapshot = await getDocs(collection(db, "inventori"));
   const results = snapshot.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((p) =>
-      p.name.toLowerCase().includes(name.toLowerCase())
-    );
+    .filter((p) => p.name.toLowerCase().includes(name.toLowerCase()));
   console.log("Search results:", results);
   return results;
 }
@@ -68,7 +68,11 @@ export async function searchProductsByName(name) {
  * }
  */
 export async function createTransactionWithStockUpdate(txPayload) {
-  if (!txPayload || !Array.isArray(txPayload.items) || txPayload.items.length === 0) {
+  if (
+    !txPayload ||
+    !Array.isArray(txPayload.items) ||
+    txPayload.items.length === 0
+  ) {
     throw new Error("Invalid transaction payload");
   }
 
@@ -84,11 +88,16 @@ export async function createTransactionWithStockUpdate(txPayload) {
       const pData = pSnap.data();
       const units = Array.isArray(pData.units) ? pData.units : [];
       const idx = units.findIndex((u) => u.unit === it.unit);
-      if (idx === -1) throw new Error(`Unit ${it.unit} tidak ditemukan untuk produk ${it.name}`);
+      if (idx === -1)
+        throw new Error(
+          `Unit ${it.unit} tidak ditemukan untuk produk ${it.name}`
+        );
 
       const currentStock = units[idx].stock || 0;
       if (currentStock < it.qty) {
-        throw new Error(`Stok tidak cukup untuk ${it.name} (${it.unit}). Sisa: ${currentStock}`);
+        throw new Error(
+          `Stok tidak cukup untuk ${it.name} (${it.unit}). Sisa: ${currentStock}`
+        );
       }
 
       units[idx] = { ...units[idx], stock: currentStock - it.qty };

@@ -9,6 +9,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function formatCurrency(num = 0) {
   return new Intl.NumberFormat("id-ID").format(num);
@@ -28,10 +30,9 @@ export default function Kasir() {
   const navigate = useNavigate();
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
-  const tax = 0;
-  const total = subtotal + tax;
+  const total = subtotal; // jika ingin pajak nanti, tinggal tambahkan variabel tax
 
-  // Cleanup saat unmount
+  // ======== SCANNER =========
   useEffect(() => {
     return () => {
       Quagga.stop();
@@ -39,90 +40,101 @@ export default function Kasir() {
     };
   }, []);
 
-  // ======== FUNGSI SCANNER =========
-  function startScanner() {
+  const startScanner = () => {
     if (scanning) return;
-
-    setScanning(true);
-
     const target = scannerRef.current;
     if (!target) {
-      console.error("Scanner container tidak ditemukan!");
-      alert("Elemen scanner tidak ditemukan di halaman.");
-      setScanning(false);
+      toast.error("Elemen scanner tidak ditemukan di halaman!");
       return;
     }
 
-    Quagga.init(
-      {
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target,
-          constraints: {
-            width: 640,
-            height: 480,
-            facingMode: "environment", // kamera belakang
+    setScanning(true);
+    Quagga.stop(); // pastikan tidak ada instance sebelumnya
+
+    setTimeout(() => {
+      Quagga.init(
+        {
+          inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target,
+            constraints: {
+              facingMode: "environment",
+              width: { min: 640 },
+              height: { min: 480 },
+            },
           },
+          decoder: {
+            readers: [
+              "code_128_reader",
+              "ean_reader",
+              "ean_8_reader",
+              "upc_reader",
+              "upc_e_reader",
+            ],
+          },
+          locate: true,
         },
-        decoder: {
-          readers: ["ean_reader", "code_128_reader", "upc_reader"],
-        },
-      },
-      (err) => {
-        if (err) {
-          console.error("Quagga init error:", err);
-          alert(
-            "Gagal mengakses kamera. Pastikan izin kamera aktif dan tidak digunakan aplikasi lain."
-          );
-          setScanning(false);
-          return;
+        (err) => {
+          if (err) {
+            console.error("Quagga init error:", err);
+            toast.error("Gagal mengakses kamera. Pastikan izin kamera aktif.");
+            setScanning(false);
+            return;
+          }
+
+          Quagga.start();
+          console.log("Scanner started.");
+
+          Quagga.onDetected(async (data) => {
+            const code = data?.codeResult?.code;
+            if (!code) return;
+            if (code === lastScanned) return; // hindari double-scan cepat
+
+            console.log("Barcode detected:", code);
+            setLastScanned(code);
+            await handleBarcodeDetected(code);
+            stopScanner(); // otomatis stop setelah scan 1 kali
+          });
         }
+      );
+    }, 400);
+  };
 
-        console.log("Quagga initialized successfully!");
-        Quagga.start();
-      }
-    );
+  const stopScanner = () => {
+    try {
+      Quagga.stop();
+      Quagga.offDetected();
+      setScanning(false);
+      console.log("Scanner stopped.");
+    } catch (err) {
+      console.error("Gagal menghentikan scanner:", err);
+    }
+  };
 
-    // pastikan tidak duplikat listener
-    Quagga.offDetected();
-    Quagga.onDetected((data) => {
-      const code = data?.codeResult?.code;
-      if (!code) return;
-      console.log("Barcode detected:", code);
-      setLastScanned(code);
-      handleBarcodeDetected(code);
-      stopScanner(); // otomatis berhenti setelah scan
-    });
-  }
-
-  function stopScanner() {
-    Quagga.stop();
-    Quagga.offDetected();
-    setScanning(false);
-    console.log("Scanner stopped.");
-  }
-
-  async function handleBarcodeDetected(code) {
+  // ======== HANDLE BARCODE ========
+  const handleBarcodeDetected = async (code) => {
     try {
       const product = await getProductByBarcode(code);
       if (product) {
-        console.log("Produk ditemukan:", product);
-        // tambahkan unit pertama default
-        const unit = (product.units || [])[0];
-        if (unit) addToCart(product, unit, 1);
-        else alert("Produk tidak memiliki unit yang valid!");
+        const unit = product.units?.[0];
+        if (unit) {
+          addToCart(product, unit, 1);
+          toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
+        } else {
+          toast.warn("Produk tidak memiliki unit yang valid!");
+        }
       } else {
-        alert("Produk tidak ditemukan di database.");
+        toast.info("Produk tidak ditemukan di database.");
       }
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan saat mencari produk.");
+      toast.error("Terjadi kesalahan saat mencari produk.");
     }
-  }
+  };
 
-  // ===== Cart helpers =====
-  function addToCart(product, unitObj, qty = 1) {
+  // ===== CART HELPERS =====
+  const addToCart = (product, unitObj, qty = 1) => {
     if (!product || !unitObj) return;
     const key = `${product.id}|${unitObj.unit}`;
     setCart((prev) => {
@@ -149,9 +161,9 @@ export default function Kasir() {
         ];
       }
     });
-  }
+  };
 
-  function updateQty(key, newQty) {
+  const updateQty = (key, newQty) => {
     setCart((prev) =>
       prev
         .map((it) =>
@@ -161,37 +173,44 @@ export default function Kasir() {
         )
         .filter((it) => it.qty > 0)
     );
-  }
+  };
 
-  function removeItem(key) {
+  const removeItem = (key) => {
     setCart((prev) => prev.filter((it) => it.key !== key));
-  }
+  };
 
-  // ===== Search products =====
-  async function handleSearch(e) {
-    e && e.preventDefault();
-    if (!searchTerm) return;
+  // ===== SEARCH =====
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      const results = await searchProductsByName(searchTerm);
+      let results = [];
+      if (/^\d+$/.test(searchTerm) || searchTerm.startsWith("BR")) {
+        const product = await getProductByBarcode(searchTerm);
+        if (product) results = [product];
+      } else {
+        results = await searchProductsByName(searchTerm);
+      }
       setProductResults(results);
     } catch (err) {
       console.error(err);
-      alert("Gagal mencari produk");
+      toast.error("Gagal cari produk!");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // ===== Checkout =====
-  async function handleCheckout() {
+  // ===== CHECKOUT =====
+  const handleCheckout = async () => {
     if (cart.length === 0) {
-      alert("Keranjang kosong");
+      toast.warn("Keranjang masih kosong!");
       return;
     }
+
     const paid = Number(payment);
     if (isNaN(paid) || paid < total) {
-      alert("Pembayaran tidak cukup atau tidak valid");
+      toast.error("Pembayaran tidak cukup atau tidak valid!");
       return;
     }
 
@@ -206,7 +225,6 @@ export default function Kasir() {
         subtotal: it.qty * it.sellPrice,
       })),
       subtotal,
-      tax,
       total,
       payment: paid,
       change: paid - total,
@@ -216,22 +234,24 @@ export default function Kasir() {
     setLoading(true);
     try {
       await createTransactionWithStockUpdate(txPayload);
-      alert("Transaksi berhasil dicatat!");
+      toast.success("💰 Transaksi berhasil disimpan!");
       setCart([]);
       setPayment("");
       setNote("");
       setProductResults([]);
     } catch (err) {
       console.error(err);
-      alert("Gagal checkout: " + (err.message || err));
+      toast.error("Gagal checkout!");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   // ======== UI ========
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <ToastContainer position="top-right" autoClose={3000} />
+
       <div className="flex items-center gap-2">
         <button
           onClick={() => navigate("/dashboard")}
@@ -245,17 +265,14 @@ export default function Kasir() {
       </div>
 
       <div className="grid grid-cols-2 gap-6 items-start">
-        {/* ===== KIRI: Scanner & Pencarian ===== */}
+        {/* KIRI */}
         <div className="bg-white p-5 rounded-2xl shadow-md">
           <h2 className="font-semibold text-lg mb-3">📷 Scanner</h2>
           <div
-            id="scanner-container"
             ref={scannerRef}
             className="w-full h-64 border-2 border-dashed border-gray-300 rounded-lg mb-3 flex items-center justify-center text-gray-400"
           >
-            {scanning
-              ? "🔍 Memindai..."
-              : "Tampilan kamera akan muncul di sini"}
+            {scanning ? "🔍 Memindai..." : "Tampilan kamera akan muncul di sini"}
           </div>
 
           <div className="flex gap-2 mb-3">
@@ -327,7 +344,7 @@ export default function Kasir() {
           </div>
         </div>
 
-        {/* ===== KANAN: Keranjang & Checkout ===== */}
+        {/* KANAN */}
         <div className="bg-white p-5 rounded-2xl shadow-md flex flex-col">
           <h2 className="font-semibold text-lg mb-3">🛒 Keranjang</h2>
 
@@ -344,61 +361,60 @@ export default function Kasir() {
                 </tr>
               </thead>
               <tbody>
-                {cart.length === 0 && (
+                {cart.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="p-4 text-center text-gray-500">
                       Keranjang kosong
                     </td>
                   </tr>
+                ) : (
+                  cart.map((it) => (
+                    <tr key={it.key} className="border-b">
+                      <td className="py-2">
+                        <div className="font-medium">{it.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {it.barcode}
+                        </div>
+                      </td>
+                      <td>{it.unit}</td>
+                      <td>{formatCurrency(it.sellPrice)}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={it.qty}
+                          min={1}
+                          max={it.stock}
+                          onChange={(e) =>
+                            updateQty(it.key, Number(e.target.value))
+                          }
+                          className="w-20 p-1 border rounded-lg text-center"
+                        />
+                        <div className="text-xs text-gray-500">
+                          stok: {it.stock}
+                        </div>
+                      </td>
+                      <td>{formatCurrency(it.qty * it.sellPrice)}</td>
+                      <td>
+                        <button
+                          onClick={() => removeItem(it.key)}
+                          className="px-2 py-1 rounded-lg border text-xs hover:bg-red-50"
+                        >
+                          Hapus
+                        </button>
+                        </td>
+                      </tr>
+                    ))
                 )}
-                {cart.map((it) => (
-                  <tr key={it.key} className="border-b">
-                    <td className="py-2">
-                      <div className="font-medium">{it.name}</div>
-                      <div className="text-xs text-gray-500">{it.barcode}</div>
-                    </td>
-                    <td>{it.unit}</td>
-                    <td>{formatCurrency(it.sellPrice)}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={it.qty}
-                        min={1}
-                        max={it.stock}
-                        onChange={(e) =>
-                          updateQty(it.key, Number(e.target.value))
-                        }
-                        className="w-20 p-1 border rounded-lg text-center"
-                      />
-                      <div className="text-xs text-gray-500">
-                        stok: {it.stock}
-                      </div>
-                    </td>
-                    <td>{formatCurrency(it.qty * it.sellPrice)}</td>
-                    <td>
-                      <button
-                        onClick={() => removeItem(it.key)}
-                        className="px-2 py-1 rounded-lg border text-xs hover:bg-red-50"
-                      >
-                        Hapus
-                      </button>
-                    </td>
-                  </tr>
-                ))}
               </tbody>
             </table>
           </div>
 
-          {/* ===== Checkout Box ===== */}
           <div className="w-full p-4 border rounded-xl bg-gray-50 mt-auto">
             <div className="flex justify-between mb-1 text-sm">
               <div>Subtotal</div>
               <div>{formatCurrency(subtotal)}</div>
             </div>
-            <div className="flex justify-between mb-1 text-sm">
-              <div>Pajak</div>
-              <div>{formatCurrency(tax)}</div>
-            </div>
+
             <div className="flex justify-between font-semibold text-lg mt-2 border-t pt-2">
               <div>Total</div>
               <div>{formatCurrency(total)}</div>
@@ -437,7 +453,7 @@ export default function Kasir() {
                 disabled={loading}
                 className="flex-1 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
               >
-                Checkout
+                {loading ? "Memproses..." : "Checkout"}
               </button>
               <button
                 onClick={() => {

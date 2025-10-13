@@ -66,3 +66,49 @@ Website yang berfungsi sebagai **kasir digital + manajemen inventori online**, d
 * **Halaman Laporan**: tabel transaksi, filter tanggal.
 
 ***
+## Struktur Proyek WARUNGKULA
+
+Proyek ini memiliki struktur direktori yang terorganisir untuk memisahkan aset, komponen, halaman, dan layanan.
+
+```
+
+WARUNGKULA/
+├── public/                  
+├── src/                     
+│   ├── assets/              
+│   │   ├── css/             
+│   │   │     └── index.css  
+│   │   └── img/             
+│   ├── components/          
+│   │   └── Navbar.jsx       
+│   ├── firebase/            
+│   │   └── firebase.js      
+│   ├── pages/               
+│   │   ├── BarcodePrint.jsx   
+│   │   ├── Dashboard.jsx     
+│   │   ├── EditBarang.jsx    
+│   │   ├── Inventori.jsx     
+│   │   ├── Kasir.jsx         
+│   │   ├── Login.jsx        
+│   │   ├── Register.jsx      
+│   │   └── TambahBarang.jsx  
+│   ├── services/             
+│   │   └── inventoriService.js  
+│   ├── App.jsx               
+│   └── main.jsx              
+├── .gitignore                
+├── eslint.config.js          
+├── index.html               
+├── package.json              
+├── README.md                 
+└── vite.config.js           
+
+```
+***
+
+## Penjelasan Singkat Direktori Kunci
+
+* **`src/pages/`**: Menyimpan komponen utama yang bertindak sebagai halaman yang memiliki rute dalam aplikasi.
+* **`src/components/`**: Berisi komponen UI yang lebih kecil dan dapat digunakan kembali (misalnya: tombol, kartu, modal).
+* **`src/services/`**: Tempat untuk logika bisnis dan fungsi yang berinteraksi dengan data atau API, memisahkannya dari komponen UI.
+* **`src/assets/`**: Digunakan untuk menyimpan aset statis seperti gambar, ikon, dan gaya khusus.

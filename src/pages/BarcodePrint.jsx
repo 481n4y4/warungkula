@@ -17,7 +17,7 @@ export default function BarcodePrint() {
       item.units.forEach((unit, index) => {
         const canvas = barcodeRefs.current[index];
         if (canvas) {
-          JsBarcode(canvas, item.barcode + "-" + unit.unit, {
+          JsBarcode(canvas, item.barcode, {
             format: "CODE128",
             displayValue: true,
             lineColor: "#000",
@@ -35,10 +35,10 @@ export default function BarcodePrint() {
     window.print();
   };
 
-  const handleDownload = (index, unit) => {
+  const handleDownload = (index) => {
     const canvas = barcodeRefs.current[index];
     const link = document.createElement("a");
-    link.download = `${item.name}-${unit.unit}.png`;
+    link.download = `${item.name}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   };
@@ -77,34 +77,27 @@ export default function BarcodePrint() {
 
       {/* Grid responsif */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 print:grid-cols-4">
-        {item.units.map((unit, index) => (
-          <div
-            key={index}
-            className="border p-3 sm:p-4 rounded-lg shadow-sm bg-white text-center 
-                       flex flex-col items-center justify-between 
-                       print:shadow-none print:border-0 print:p-0"
-          >
-            <p className="font-semibold text-sm sm:text-base mb-2">
-              {item.name} ({unit.unit})
-            </p>
+        <div
+          className="border p-3 sm:p-4 rounded-lg shadow-sm bg-white text-center 
+               flex flex-col items-center justify-between 
+               print:shadow-none print:border-0 print:p-0"
+        >
+          <p className="font-semibold text-sm sm:text-base mb-2">{item.name}</p>
 
-            {/* Responsive barcode */}
-            <div className="w-full flex justify-center">
-              <canvas
-                ref={(el) => (barcodeRefs.current[index] = el)}
-                className="w-full max-w-[250px] h-auto"
-              />
-            </div>
-
-            {/* Tombol download disembunyikan saat print */}
-            <button
-              onClick={() => handleDownload(index, unit)}
-              className="mt-3 bg-blue-500 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-600 transition print:hidden w-full sm:w-auto"
-            >
-              Download
-            </button>
+          <div className="w-full flex justify-center">
+            <canvas
+              ref={(el) => (barcodeRefs.current[0] = el)}
+              className="w-full max-w-[250px] h-auto"
+            />
           </div>
-        ))}
+
+          <button
+            onClick={() => handleDownload(0)}
+            className="mt-3 bg-blue-500 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-600 transition print:hidden w-full sm:w-auto"
+          >
+            Download
+          </button>
+        </div>
       </div>
 
       {/* Tombol cetak di bawah */}
