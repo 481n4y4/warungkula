@@ -1,46 +1,27 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import JsBarcode from "jsbarcode";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import { QRCodeCanvas } from "qrcode.react"; // ✅ pakai qrcode.react
 
 export default function BarcodePrint() {
   const location = useLocation();
   const navigate = useNavigate();
   const { item } = location.state || {};
-
-  const barcodeRefs = useRef([]);
-
-  // Generate barcode
-  useEffect(() => {
-    if (item?.units) {
-      item.units.forEach((unit, index) => {
-        const canvas = barcodeRefs.current[index];
-        if (canvas) {
-          JsBarcode(canvas, item.barcode, {
-            format: "CODE128",
-            displayValue: true,
-            lineColor: "#000",
-            fontSize: 14,
-            width: 2,
-            height: 60,
-            margin: 10,
-          });
-        }
-      });
-    }
-  }, [item]);
+  const qrRefs = useRef([]);
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleDownload = (index) => {
-    const canvas = barcodeRefs.current[index];
-    const link = document.createElement("a");
-    link.download = `${item.name}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    const canvas = qrRefs.current[index]?.querySelector("canvas");
+    if (canvas) {
+      const link = document.createElement("a");
+      link.download = `${item.name || "produk"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
   };
 
   if (!item) {
@@ -70,26 +51,33 @@ export default function BarcodePrint() {
             <span>Kembali</span>
           </button>
           <h1 className="text-xl sm:text-2xl font-bold mb-4 text-center sm:text-left">
-            Cetak Barcode - {item.name}
+            Cetak QR Code - {item.name}
           </h1>
         </div>
       </div>
 
-      {/* Grid responsif */}
+      {/* Grid responsif untuk QR code */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 print:grid-cols-4">
         <div
+          ref={(el) => (qrRefs.current[0] = el)}
           className="border p-3 sm:p-4 rounded-lg shadow-sm bg-white text-center 
                flex flex-col items-center justify-between 
                print:shadow-none print:border-0 print:p-0"
         >
           <p className="font-semibold text-sm sm:text-base mb-2">{item.name}</p>
 
-          <div className="w-full flex justify-center">
-            <canvas
-              ref={(el) => (barcodeRefs.current[0] = el)}
-              className="w-full max-w-[250px] h-auto"
-            />
-          </div>
+          {/* ✅ Generate QR Code */}
+          <QRCodeCanvas
+            value={JSON.stringify({
+              id: item.id,
+              name: item.name,
+              barcode: item.barcode,
+              unit: item.units?.[0]?.unit || "",
+            })}
+            size={180}
+            level="H"
+            includeMargin={true}
+          />
 
           <button
             onClick={() => handleDownload(0)}
@@ -106,7 +94,7 @@ export default function BarcodePrint() {
           onClick={handlePrint}
           className="bg-green-500 text-white px-4 py-2 rounded shadow hover:bg-green-600 transition w-full sm:w-auto"
         >
-          Cetak Barcode
+          Cetak QR Code
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 // src/pages/Kasir.jsx
-import React, { useEffect, useRef, useState } from "react";
-import Quagga from "@ericblade/quagga2";
+import React, { useState } from "react";
+import QrReader from "react-qr-reader-es6";
 import {
   getProductByBarcode,
   searchProductsByName,
@@ -17,9 +17,7 @@ function formatCurrency(num = 0) {
 }
 
 export default function Kasir() {
-  const scannerRef = useRef(null);
-  const [scanning, setScanning] = useState(false);
-  const [lastScanned, setLastScanned] = useState("");
+  const [lastScanned, setLastScanned] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [productResults, setProductResults] = useState([]);
   const [cart, setCart] = useState([]);
@@ -31,93 +29,35 @@ export default function Kasir() {
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
 
-  // ===== SCANNER =====
-  useEffect(() => {
-    return () => {
-      Quagga.stop();
-      Quagga.offDetected();
-    };
-  }, []);
+  // ===== HANDLE QR SCAN =====
+  const handleScan = async (result) => {
+    if (result && result !== lastScanned) {
+      console.log("QR Code:", result);
+      setLastScanned(result);
 
-  const startScanner = () => {
-    if (scanning) return;
-    const target = scannerRef.current;
-    if (!target) {
-      toast.error("Elemen scanner tidak ditemukan di halaman!");
-      return;
-    }
-
-    setScanning(true);
-    Quagga.stop();
-
-    setTimeout(() => {
-      Quagga.init(
-        {
-          inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target,
-            constraints: {
-              facingMode: "environment",
-              width: { min: 640 },
-              height: { min: 480 },
-            },
-          },
-          decoder: {
-            readers: [
-              "code_128_reader",
-              "ean_reader",
-              "ean_8_reader",
-              "upc_reader",
-              "upc_e_reader",
-            ],
-          },
-          locate: true,
-        },
-        (err) => {
-          if (err) {
-            toast.error("Gagal mengakses kamera. Pastikan izin kamera aktif.");
-            setScanning(false);
-            return;
+      try {
+        const product = await getProductByBarcode(result); // gunakan 'result'
+        if (product) {
+          const unit = product.units?.[0];
+          if (unit) {
+            addToCart(product, unit, 1);
+            toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
+          } else {
+            toast.warn("Produk tidak memiliki unit yang valid!");
           }
-
-          Quagga.start();
-          Quagga.onDetected(async (data) => {
-            const code = data?.codeResult?.code;
-            if (!code || code === lastScanned) return;
-            setLastScanned(code);
-            await handleBarcodeDetected(code);
-            stopScanner();
-          });
+        } else {
+          toast.info("Produk tidak ditemukan di database.");
         }
-      );
-    }, 400);
-  };
-
-  const stopScanner = () => {
-    try {
-      Quagga.stop();
-      Quagga.offDetected();
-      setScanning(false);
-    } catch (err) {
-      console.error("Gagal menghentikan scanner:", err);
+      } catch (error) {
+        console.error(error);
+        toast.error("Terjadi kesalahan saat mencari produk.");
+      }
     }
   };
 
-  // ===== HANDLE BARCODE =====
-  const handleBarcodeDetected = async (code) => {
-    try {
-      const product = await getProductByBarcode(code);
-      if (product) {
-        const unit = product.units?.[0];
-        if (unit) {
-          addToCart(product, unit, 1);
-          toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
-        } else toast.warn("Produk tidak memiliki unit yang valid!");
-      } else toast.info("Produk tidak ditemukan di database.");
-    } catch {
-      toast.error("Terjadi kesalahan saat mencari produk.");
-    }
+  const handleError = (err) => {
+    console.error(err);
+    toast.error("Gagal membaca QR Code!");
   };
 
   // ===== CART HELPERS =====
@@ -161,7 +101,8 @@ export default function Kasir() {
     );
   };
 
-  const removeItem = (key) => setCart((prev) => prev.filter((it) => it.key !== key));
+  const removeItem = (key) =>
+    setCart((prev) => prev.filter((it) => it.key !== key));
 
   // ===== SEARCH =====
   const handleSearch = async (e) => {
@@ -244,38 +185,13 @@ export default function Kasir() {
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
           <h2 className="font-semibold text-lg">📷 Pemindai Barcode</h2>
 
-          <div
-            ref={scannerRef}
-            className="w-full h-64 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 text-sm"
-          >
-            {scanning ? "🔍 Sedang memindai..." : "Tampilan kamera akan muncul di sini"}
-          </div>
-
-          <div className="flex gap-2">
-            {!scanning ? (
-              <button
-                onClick={startScanner}
-                className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition"
-              >
-                Mulai Scan
-              </button>
-            ) : (
-              <button
-                onClick={stopScanner}
-                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm transition"
-              >
-                Stop Scan
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setLastScanned("");
-                setSearchTerm("");
-              }}
-              className="px-4 py-2 rounded-xl border font-medium hover:bg-gray-50 transition"
-            >
-              Reset
-            </button>
+          <div className="overflow-hidden rounded-xl border">
+            <QrReader
+              delay={300}
+              onError={handleError}
+              onScan={handleScan}
+              style={{ width: "100%" }}
+            />
           </div>
 
           <div className="text-sm text-gray-600">
@@ -292,7 +208,9 @@ export default function Kasir() {
           </form>
 
           <div className="max-h-56 overflow-y-auto border rounded-xl divide-y bg-gray-50">
-            {loading && <div className="p-3 text-sm text-gray-500">Loading...</div>}
+            {loading && (
+              <div className="p-3 text-sm text-gray-500">Loading...</div>
+            )}
             {productResults.map((p) => (
               <div
                 key={p.id}
@@ -343,10 +261,17 @@ export default function Kasir() {
                   </tr>
                 ) : (
                   cart.map((it) => (
-                    <tr key={it.key} className="border-b hover:bg-gray-50 transition">
+                    <tr
+                      key={it.key}
+                      className="border-b hover:bg-gray-50 transition"
+                    >
                       <td className="py-2">
-                        <div className="font-medium text-gray-800">{it.name}</div>
-                        <div className="text-xs text-gray-500">{it.barcode}</div>
+                        <div className="font-medium text-gray-800">
+                          {it.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {it.barcode}
+                        </div>
                       </td>
                       <td>{it.unit}</td>
                       <td>{formatCurrency(it.sellPrice)}</td>
@@ -361,7 +286,9 @@ export default function Kasir() {
                           }
                           className="w-16 p-1 border rounded-lg text-center"
                         />
-                        <div className="text-xs text-gray-500">stok: {it.stock}</div>
+                        <div className="text-xs text-gray-500">
+                          stok: {it.stock}
+                        </div>
                       </td>
                       <td>{formatCurrency(it.qty * it.sellPrice)}</td>
                       <td>
