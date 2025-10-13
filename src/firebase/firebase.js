@@ -1,6 +1,3 @@
-// src/firebase/firebase.js
-// konfigurasi & helper API Firestore untuk Kasir
-
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import {

@@ -5,12 +5,14 @@ import {
   getProductByBarcode,
   searchProductsByName,
   createTransactionWithStockUpdate,
+  db,
 } from "../firebase/firebase";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 function formatCurrency(num = 0) {
   return new Intl.NumberFormat("id-ID").format(num);
@@ -26,7 +28,6 @@ export default function Kasir() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [isScannerOpen, setScannerOpen] = useState(false);
-
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
@@ -157,18 +158,27 @@ export default function Kasir() {
       payment: paid,
       change: paid - total,
       note,
+      createdAt: serverTimestamp(),
     };
 
     setLoading(true);
     try {
+      // 1️⃣ Simpan transaksi ke Firestore
+      const docRef = await addDoc(collection(db, "transaksi"), txPayload);
+
+      // 2️⃣ Kurangi stok lewat function existing (kalau kamu pakai)
       await createTransactionWithStockUpdate(txPayload);
-      toast.success("💰 Transaksi berhasil disimpan!");
+
+      // 3️⃣ Bersihkan keranjang
       setCart([]);
       setPayment("");
       setNote("");
-      setProductResults([]);
-    } catch {
-      toast.error("Gagal checkout!");
+
+      // 4️⃣ Arahkan ke halaman struk dengan membawa ID transaksi
+      navigate("/receipt", { state: { id: docRef.id } });
+    } catch (error) {
+      console.error(error);
+      toast.error("Gagal menyimpan transaksi!");
     } finally {
       setLoading(false);
     }

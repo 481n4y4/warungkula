@@ -7,6 +7,7 @@ import TambahBarang from "./pages/TambahBarang";
 import EditBarang from "./pages/EditBarang";
 import BarcodePrint from "./pages/BarcodePrint";
 import Kasir from "./pages/Kasir";
+import Receipt from "./components/Receipt";
 
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/edit-barang/:id" element={<EditBarang />} />
         <Route path="/cetak-barcode" element={<BarcodePrint />} />
         <Route path="/kasir" element={<Kasir />} />
+        <Route path="/receipt" element={<Receipt />} />
       </Routes>
     </Router>
   );
