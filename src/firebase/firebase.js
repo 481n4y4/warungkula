@@ -76,19 +76,30 @@ export async function createTransactionWithStockUpdate(txPayload) {
   const transactionsRef = collection(db, TRANSACTIONS_COL);
 
   await runTransaction(db, async (t) => {
-    // For each item, read product doc and update units array
-    for (const it of txPayload.items) {
-      const pRef = doc(db, PRODUCTS_COL, it.productId);
-      const pSnap = await t.get(pRef);
+    // 🧩 1️⃣ Siapkan semua ref produk
+    const productRefs = txPayload.items.map((it) =>
+      doc(db, PRODUCTS_COL, it.productId)
+    );
+
+    // 🧩 2️⃣ Baca semua produk dulu
+    const productSnaps = await Promise.all(
+      productRefs.map((ref) => t.get(ref))
+    );
+
+    // 🧩 3️⃣ Validasi & hitung stok baru
+    const updatedUnitsList = [];
+
+    for (let i = 0; i < txPayload.items.length; i++) {
+      const it = txPayload.items[i];
+      const pSnap = productSnaps[i];
+
       if (!pSnap.exists()) throw new Error(`Produk ${it.name} tidak ditemukan`);
 
       const pData = pSnap.data();
       const units = Array.isArray(pData.units) ? pData.units : [];
       const idx = units.findIndex((u) => u.unit === it.unit);
       if (idx === -1)
-        throw new Error(
-          `Unit ${it.unit} tidak ditemukan untuk produk ${it.name}`
-        );
+        throw new Error(`Unit ${it.unit} tidak ditemukan untuk ${it.name}`);
 
       const currentStock = units[idx].stock || 0;
       if (currentStock < it.qty) {
@@ -98,16 +109,19 @@ export async function createTransactionWithStockUpdate(txPayload) {
       }
 
       units[idx] = { ...units[idx], stock: currentStock - it.qty };
-      t.update(pRef, { units });
+      updatedUnitsList.push({ ref: productRefs[i], units });
     }
 
-    // create transaction doc
+    // 🧩 4️⃣ Setelah semua read selesai, baru update
+    for (const { ref, units } of updatedUnitsList) {
+      t.update(ref, { units });
+    }
+
+    // 🧩 5️⃣ Terakhir, buat dokumen transaksi
     const newTxRef = doc(transactionsRef); // auto id
     t.set(newTxRef, {
       ...txPayload,
       createdAt: serverTimestamp(),
     });
   });
-
-  // success (no return required)
 }

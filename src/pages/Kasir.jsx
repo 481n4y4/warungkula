@@ -28,13 +28,13 @@ export default function Kasir() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [isScannerOpen, setScannerOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(""); 
+
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
 
-  // =====================================================
-  // 🧩 FUNGSI UTAMA UNTUK PENCARIAN PRODUK (manual + scan)
-  // =====================================================
+  // FUNGSI UTAMA UNTUK PENCARIAN PRODUK (manual + scan)
   const performSearch = async (term) => {
     if (!term?.trim()) return;
     setLoading(true);
@@ -72,13 +72,13 @@ export default function Kasir() {
     }
   };
 
-  // ===== HANDLE SEARCH (manual) =====
+  // HANDLE SEARCH (manual)
   const handleSearch = async (e) => {
     e.preventDefault();
     performSearch(searchTerm);
   };
 
-  // ===== HANDLE SCAN (QR Code) =====
+  // HANDLE SCAN (QR Code)
   const handleScan = async (result) => {
     if (result && result !== lastScanned) {
       console.log("QR Code:", result);
@@ -92,7 +92,7 @@ export default function Kasir() {
     toast.error("Gagal membaca QR Code!");
   };
 
-  // ===== CART HELPERS =====
+  // CART HELPERS
   const addToCart = (product, unitObj, qty = 1) => {
     if (!product || !unitObj) return;
     const key = `${product.id}|${unitObj.unit}`;
@@ -157,6 +157,7 @@ export default function Kasir() {
       total,
       payment: paid,
       change: paid - total,
+      paymentMethod,
       note,
       createdAt: serverTimestamp(),
     };
@@ -186,240 +187,258 @@ export default function Kasir() {
 
   // ====================== UI ===========================
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <ToastContainer position="top-right" autoClose={2500} />
-
-      {/* Header */}
-      <div className="flex items-center gap-3">
+    <section>
+      <div className="bg-white shadow-sm p-4 flex items-center">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-all shadow-sm"
+          className="text-gray-600 hover:text-gray-900 transition"
         >
-          <FontAwesomeIcon icon={faArrowLeft} />
-          <span>Kembali</span>
+          <FontAwesomeIcon icon={faArrowLeft} size="lg" />
         </button>
-        <h1 className="text-2xl font-bold text-gray-800">Mode Kasir</h1>
+        <h1 className="flex-1 text-center text-xl font-bold text-gray-800">
+          Mode Kasir
+        </h1>
       </div>
 
-      {/* Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Scanner + Search */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            Pemindai Barcode
-          </h2>
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+        <ToastContainer position="top-right" autoClose={2500} />
+        {/* Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Scanner + Search */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              Pemindai Barcode
+            </h2>
 
-          {/* Tombol untuk membuka scanner */}
-          <button
-            onClick={() => setScannerOpen(true)}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow transition"
-          >
-            Buka Pemindai
-          </button>
+            {/* Tombol untuk membuka scanner */}
+            <button
+              onClick={() => setScannerOpen(true)}
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow transition"
+            >
+              Buka Pemindai
+            </button>
 
-          <div className="text-sm text-gray-600">
-            Hasil terakhir: <strong>{lastScanned || "-"}</strong>
-          </div>
-
-          <form onSubmit={handleSearch}>
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="🔎 Cari nama produk atau barcode lalu tekan Enter"
-              className="w-full p-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </form>
-
-          <div className="max-h-56 overflow-y-auto border rounded-xl divide-y bg-gray-50">
-            {loading && (
-              <div className="p-3 text-sm text-gray-500">Loading...</div>
-            )}
-            {productResults.map((p) => (
-              <div
-                key={p.id}
-                className="p-3 flex justify-between items-center hover:bg-white transition"
-              >
-                <div>
-                  <div className="font-semibold text-gray-800">{p.name}</div>
-                  <div className="text-xs text-gray-500">{p.barcode}</div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {(p.units || []).map((u) => (
-                    <button
-                      key={u.unit}
-                      onClick={() => addToCart(p, u, 1)}
-                      className="px-2 py-1 text-xs rounded-lg border bg-white hover:bg-blue-50 transition"
-                    >
-                      {u.unit} — {formatCurrency(u.sellPrice)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ===== Modal Scanner ===== */}
-          {isScannerOpen && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-              <div className="bg-white p-5 rounded-2xl shadow-lg w-[90%] max-w-md relative">
-                <h3 className="text-lg font-semibold mb-3">Pindai Barcode</h3>
-                <button
-                  onClick={() => setScannerOpen(false)}
-                  className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-                >
-                  <FontAwesomeIcon icon={faXmark} />
-                </button>
-
-                <div className="rounded-xl overflow-hidden border">
-                  <QrReader
-                    delay={300}
-                    onError={handleError}
-                    onScan={(result) => {
-                      handleScan(result);
-                      if (result) setScannerOpen(false);
-                    }}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  Arahkan kamera ke barcode produk
-                </p>
-              </div>
+            <div className="text-sm text-gray-600">
+              Hasil terakhir: <strong>{lastScanned || "-"}</strong>
             </div>
-          )}
-        </div>
 
-        {/* Right: Cart */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-          <h2 className="font-semibold text-lg mb-3">Keranjang</h2>
+            <form onSubmit={handleSearch}>
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="🔎 Cari nama produk atau barcode lalu tekan Enter"
+                className="w-full p-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </form>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b text-gray-600">
-                  <th className="py-2 text-left">Produk</th>
-                  <th>Unit</th>
-                  <th>Harga</th>
-                  <th>Qty</th>
-                  <th>Subtotal</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="p-4 text-center text-gray-500">
-                      Keranjang masih kosong
-                    </td>
+            <div className="max-h-56 overflow-y-auto border rounded-xl divide-y bg-gray-50">
+              {loading && (
+                <div className="p-3 text-sm text-gray-500">Loading...</div>
+              )}
+              {productResults.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-3 flex justify-between items-center hover:bg-white transition"
+                >
+                  <div>
+                    <div className="font-semibold text-gray-800">{p.name}</div>
+                    <div className="text-xs text-gray-500">{p.barcode}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(p.units || []).map((u) => (
+                      <button
+                        key={u.unit}
+                        onClick={() => addToCart(p, u, 1)}
+                        className="px-2 py-1 text-xs rounded-lg border bg-white hover:bg-blue-50 transition"
+                      >
+                        {u.unit} — {formatCurrency(u.sellPrice)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ===== Modal Scanner ===== */}
+            {isScannerOpen && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+                <div className="bg-white p-5 rounded-2xl shadow-lg w-[90%] max-w-md relative">
+                  <h3 className="text-lg font-semibold mb-3">Pindai Barcode</h3>
+                  <button
+                    onClick={() => setScannerOpen(false)}
+                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                  >
+                    <FontAwesomeIcon icon={faXmark} />
+                  </button>
+
+                  <div className="rounded-xl overflow-hidden border">
+                    <QrReader
+                      delay={300}
+                      onError={handleError}
+                      onScan={(result) => {
+                        handleScan(result);
+                        if (result) setScannerOpen(false);
+                      }}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Arahkan kamera ke barcode produk
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Cart */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            <h2 className="font-semibold text-lg mb-3">Keranjang</h2>
+
+            <div className="overflow-x-auto mb-3">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b text-gray-600">
+                    <th className="py-2 text-left">Produk</th>
+                    <th>Unit</th>
+                    <th>Harga</th>
+                    <th>Qty</th>
+                    <th>Subtotal</th>
+                    <th></th>
                   </tr>
-                ) : (
-                  cart.map((it) => (
-                    <tr
-                      key={it.key}
-                      className="border-b hover:bg-gray-50 transition"
-                    >
-                      <td className="py-2">
-                        <div className="font-medium text-gray-800">
-                          {it.name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {it.barcode}
-                        </div>
-                      </td>
-                      <td>{it.unit}</td>
-                      <td>{formatCurrency(it.sellPrice)}</td>
-                      <td className="text-center">
-                        <input
-                          type="number"
-                          value={it.qty}
-                          min={1}
-                          max={it.stock}
-                          onChange={(e) =>
-                            updateQty(it.key, Number(e.target.value))
-                          }
-                          className="w-16 p-1 border rounded-lg text-center"
-                        />
-                        <div className="text-xs text-gray-500">
-                          stok: {it.stock}
-                        </div>
-                      </td>
-                      <td>{formatCurrency(it.qty * it.sellPrice)}</td>
-                      <td>
-                        <button
-                          onClick={() => removeItem(it.key)}
-                          className="px-2 py-1 rounded-lg border text-xs hover:bg-red-50 transition"
-                        >
-                          Hapus
-                        </button>
+                </thead>
+                <tbody>
+                  {cart.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="p-4 text-center text-gray-500">
+                        Keranjang masih kosong
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Summary */}
-          <div className="w-full p-4 border rounded-2xl bg-gray-50 mt-auto space-y-3">
-            <div className="flex justify-between text-sm text-gray-700">
-              <span>Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
+                  ) : (
+                    cart.map((it) => (
+                      <tr
+                        key={it.key}
+                        className="border-b hover:bg-gray-50 transition"
+                      >
+                        <td className="py-2">
+                          <div className="font-medium text-gray-800">
+                            {it.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {it.barcode}
+                          </div>
+                        </td>
+                        <td>{it.unit}</td>
+                        <td>{formatCurrency(it.sellPrice)}</td>
+                        <td className="text-center">
+                          <input
+                            type="number"
+                            value={it.qty}
+                            min={1}
+                            max={it.stock}
+                            onChange={(e) =>
+                              updateQty(it.key, Number(e.target.value))
+                            }
+                            className="w-16 p-1 border rounded-lg text-center"
+                          />
+                          <div className="text-xs text-gray-500">
+                            stok: {it.stock}
+                          </div>
+                        </td>
+                        <td>{formatCurrency(it.qty * it.sellPrice)}</td>
+                        <td>
+                          <button
+                            onClick={() => removeItem(it.key)}
+                            className="px-2 py-1 rounded-lg border text-xs hover:bg-red-50 transition"
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div className="flex justify-between text-lg font-semibold text-gray-900 border-t pt-2">
-              <span>Total</span>
-              <span>{formatCurrency(total)}</span>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Bayar</label>
-              <input
-                type="number"
-                value={payment}
-                onChange={(e) => setPayment(e.target.value)}
-                className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500"
-              />
-              <div className="text-sm text-gray-700">
-                Kembalian:{" "}
-                <strong>
-                  {payment
-                    ? formatCurrency(Math.max(0, Number(payment) - total))
-                    : "-"}
-                </strong>
+            {/* Summary */}
+            <div className="w-full p-4 border rounded-2xl bg-gray-50 mt-auto space-y-3">
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>Subtotal</span>
+                <span>{formatCurrency(subtotal)}</span>
               </div>
-            </div>
 
-            <div>
-              <label className="text-sm font-medium">Catatan (opsional)</label>
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+              <div className="flex justify-between text-lg font-semibold text-gray-900 border-t pt-2">
+                <span>Total</span>
+                <span>{formatCurrency(total)}</span>
+              </div>
 
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={handleCheckout}
-                disabled={loading}
-                className="flex-1 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm transition"
-              >
-                {loading ? "Memproses..." : "Checkout"}
-              </button>
-              <button
-                onClick={() => {
-                  setCart([]);
-                  setPayment("");
-                }}
-                className="py-2 px-4 rounded-xl border font-semibold hover:bg-gray-100 transition"
-              >
-                Batal
-              </button>
+              <div>
+                <label className="text-sm font-medium">Metode Pembayaran</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500 mt-1 text-sm"
+                >
+                  <option value="">Pilih metode...</option>
+                  <option value="Tunai">Tunai</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="Transfer">Transfer</option>
+                  <option value="Debit">Debit</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bayar</label>
+                <input
+                  type="number"
+                  value={payment}
+                  onChange={(e) => setPayment(e.target.value)}
+                  className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="text-sm text-gray-700">
+                  Kembalian:{" "}
+                  <strong>
+                    {payment
+                      ? formatCurrency(Math.max(0, Number(payment) - total))
+                      : "-"}
+                  </strong>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">
+                  Catatan (opsional)
+                </label>
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleCheckout}
+                  disabled={loading}
+                  className="flex-1 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm transition"
+                >
+                  {loading ? "Memproses..." : "Checkout"}
+                </button>
+                <button
+                  onClick={() => {
+                    setCart([]);
+                    setPayment("");
+                  }}
+                  className="py-2 px-4 rounded-xl border font-semibold hover:bg-gray-100 transition"
+                >
+                  Batal
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
