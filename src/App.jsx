@@ -6,6 +6,8 @@ import Inventori from "./pages/Inventori";
 import TambahBarang from "./pages/TambahBarang";
 import EditBarang from "./pages/EditBarang";
 import BarcodePrint from "./pages/BarcodePrint";
+import Kasir from "./pages/Kasir";
+
 
 export default function App() {
   return (
@@ -18,6 +20,7 @@ export default function App() {
         <Route path="/tambah-barang" element={<TambahBarang />} />
         <Route path="/edit-barang/:id" element={<EditBarang />} />
         <Route path="/cetak-barcode" element={<BarcodePrint />} />
+        <Route path="/kasir" element={<Kasir />} />
       </Routes>
     </Router>
   );
