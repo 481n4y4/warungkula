@@ -81,27 +81,23 @@ export default function EditBarang() {
   };
 
   return (
-    <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate("/inventori")}
-            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition flex items-center gap-2 text-sm sm:text-base"
-          >
-            <FontAwesomeIcon icon={faArrowLeft} />
-            <span>Kembali</span>
-          </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-            Edit Barang
-          </h1>
-        </div>
+    <section>
+      <div className="bg-white shadow-md p-4 flex items-center">
+        <button
+          onClick={() => navigate("/inventori")}
+          className="text-gray-600 hover:text-gray-900 transition"
+        >
+          <FontAwesomeIcon icon={faArrowLeft} size="lg" />
+        </button>
+        <h1 className="flex-1 text-center text-lg font-semibold text-gray-800">
+          Edit Barang
+        </h1>
       </div>
-
+    <div>
       {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-xl shadow-md p-4 sm:p-6 space-y-5 max-w-2xl mx-auto"
+        className="p-4 sm:p-6 space-y-5 max-w-2xl mx-auto"
       >
         {/* Nama barang */}
         <div>
@@ -221,5 +217,6 @@ export default function EditBarang() {
         </button>
       </form>
     </div>
+    </section>
   );
 }
