@@ -7,7 +7,7 @@ import {
   createTransactionWithStockUpdate,
 } from "../firebase/firebase";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -25,6 +25,8 @@ export default function Kasir() {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [isScannerOpen, setScannerOpen] = useState(false);
+
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
@@ -172,9 +174,7 @@ export default function Kasir() {
     }
   };
 
-  // =====================================================
-  // ====================== UI ============================
-  // =====================================================
+  // ====================== UI ===========================
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <ToastContainer position="top-right" autoClose={2500} />
@@ -195,16 +195,17 @@ export default function Kasir() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Scanner + Search */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-          <h2 className="font-semibold text-lg">📷 Pemindai Barcode</h2>
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            Pemindai Barcode
+          </h2>
 
-          <div className="overflow-hidden rounded-xl border">
-            <QrReader
-              delay={300}
-              onError={handleError}
-              onScan={handleScan}
-              style={{ width: "100%" }}
-            />
-          </div>
+          {/* Tombol untuk membuka scanner */}
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow transition"
+          >
+            Buka Pemindai
+          </button>
 
           <div className="text-sm text-gray-600">
             Hasil terakhir: <strong>{lastScanned || "-"}</strong>
@@ -246,11 +247,42 @@ export default function Kasir() {
               </div>
             ))}
           </div>
+
+          {/* ===== Modal Scanner ===== */}
+          {isScannerOpen && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+              <div className="bg-white p-5 rounded-2xl shadow-lg w-[90%] max-w-md relative">
+                <h3 className="text-lg font-semibold mb-3">Pindai Barcode</h3>
+                <button
+                  onClick={() => setScannerOpen(false)}
+                  className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                >
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+
+                <div className="rounded-xl overflow-hidden border">
+                  <QrReader
+                    delay={300}
+                    onError={handleError}
+                    onScan={(result) => {
+                      handleScan(result);
+                      if (result) setScannerOpen(false);
+                    }}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Arahkan kamera ke barcode produk
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Cart */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-          <h2 className="font-semibold text-lg mb-3">🛒 Keranjang</h2>
+          <h2 className="font-semibold text-lg mb-3">Keranjang</h2>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
