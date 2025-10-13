@@ -29,29 +29,58 @@ export default function Kasir() {
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
 
-  // ===== HANDLE QR SCAN =====
+  // =====================================================
+  // 🧩 FUNGSI UTAMA UNTUK PENCARIAN PRODUK (manual + scan)
+  // =====================================================
+  const performSearch = async (term) => {
+    if (!term?.trim()) return;
+    setLoading(true);
+
+    try {
+      let results = [];
+
+      if (/^\d+$/.test(term) || term.startsWith("BR")) {
+        // Cari berdasarkan barcode
+        const product = await getProductByBarcode(term);
+        if (product) results = [product];
+      } else {
+        // Cari berdasarkan nama produk
+        results = await searchProductsByName(term);
+      }
+
+      setProductResults(results);
+
+      if (results.length === 0) {
+        toast.info("Produk tidak ditemukan.");
+      } else if (results.length === 1 && results[0].units?.length === 1) {
+        // Jika hasil hanya 1 dan 1 satuan → langsung masukkan ke keranjang
+        const product = results[0];
+        const unit = product.units[0];
+        addToCart(product, unit, 1);
+        toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
+      } else {
+        toast.info("Pilih produk atau satuan yang sesuai.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Gagal mencari produk!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== HANDLE SEARCH (manual) =====
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    performSearch(searchTerm);
+  };
+
+  // ===== HANDLE SCAN (QR Code) =====
   const handleScan = async (result) => {
     if (result && result !== lastScanned) {
       console.log("QR Code:", result);
       setLastScanned(result);
-
-      try {
-        const product = await getProductByBarcode(result); // gunakan 'result'
-        if (product) {
-          const unit = product.units?.[0];
-          if (unit) {
-            addToCart(product, unit, 1);
-            toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
-          } else {
-            toast.warn("Produk tidak memiliki unit yang valid!");
-          }
-        } else {
-          toast.info("Produk tidak ditemukan di database.");
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Terjadi kesalahan saat mencari produk.");
-      }
+      performSearch(result); // panggil fungsi yang sama
     }
   };
 
@@ -104,25 +133,6 @@ export default function Kasir() {
   const removeItem = (key) =>
     setCart((prev) => prev.filter((it) => it.key !== key));
 
-  // ===== SEARCH =====
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
-    setLoading(true);
-    try {
-      let results = [];
-      if (/^\d+$/.test(searchTerm) || searchTerm.startsWith("BR")) {
-        const product = await getProductByBarcode(searchTerm);
-        if (product) results = [product];
-      } else results = await searchProductsByName(searchTerm);
-      setProductResults(results);
-    } catch {
-      toast.error("Gagal cari produk!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // ===== CHECKOUT =====
   const handleCheckout = async () => {
     if (cart.length === 0) return toast.warn("Keranjang masih kosong!");
@@ -162,7 +172,9 @@ export default function Kasir() {
     }
   };
 
-  // ===== UI =====
+  // =====================================================
+  // ====================== UI ============================
+  // =====================================================
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <ToastContainer position="top-right" autoClose={2500} />
