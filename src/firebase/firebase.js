@@ -1,3 +1,4 @@
+// firebase.js
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import {
@@ -76,17 +77,17 @@ export async function createTransactionWithStockUpdate(txPayload) {
   const transactionsRef = collection(db, TRANSACTIONS_COL);
 
   await runTransaction(db, async (t) => {
-    // 🧩 1️⃣ Siapkan semua ref produk
+    // 1️⃣ Siapkan semua ref produk
     const productRefs = txPayload.items.map((it) =>
       doc(db, PRODUCTS_COL, it.productId)
     );
 
-    // 🧩 2️⃣ Baca semua produk dulu
+    // 2️⃣ Baca semua produk
     const productSnaps = await Promise.all(
       productRefs.map((ref) => t.get(ref))
     );
 
-    // 🧩 3️⃣ Validasi & hitung stok baru
+    // 3️⃣ Validasi & update stok
     const updatedUnitsList = [];
 
     for (let i = 0; i < txPayload.items.length; i++) {
@@ -112,15 +113,22 @@ export async function createTransactionWithStockUpdate(txPayload) {
       updatedUnitsList.push({ ref: productRefs[i], units });
     }
 
-    // 🧩 4️⃣ Setelah semua read selesai, baru update
+    // 4️⃣ Update semua stok
     for (const { ref, units } of updatedUnitsList) {
       t.update(ref, { units });
     }
 
-    // 🧩 5️⃣ Terakhir, buat dokumen transaksi
-    const newTxRef = doc(transactionsRef); // auto id
+    // 5️⃣ Hitung total harga & tambahkan field penting
+    const totalPrice = txPayload.items.reduce(
+      (sum, it) => sum + (it.sellPrice || 0) * (it.qty || 0),
+      0
+    );
+
+    const newTxRef = doc(transactionsRef);
     t.set(newTxRef, {
       ...txPayload,
+      totalPrice,
+      paymentMethod: txPayload.paymentMethod || "Tunai",
       createdAt: serverTimestamp(),
     });
   });
