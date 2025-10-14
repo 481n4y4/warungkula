@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-} from "firebase/firestore";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { format } from "date-fns";
 import {
@@ -19,7 +14,10 @@ import {
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilePdf, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import {
+  faFilePdf,
+  faMagnifyingGlass,
+} from "@fortawesome/free-solid-svg-icons";
 
 export default function LaporanPenjualan() {
   const [transaksi, setTransaksi] = useState([]);
@@ -33,7 +31,9 @@ export default function LaporanPenjualan() {
     const fetchData = async () => {
       try {
         const transaksiRef = collection(db, "transaksi");
-        const snapshot = await getDocs(query(transaksiRef, orderBy("date", "desc")));
+        const snapshot = await getDocs(
+          query(transaksiRef, orderBy("createdAt", "desc"))
+        );
         const data = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -55,7 +55,9 @@ export default function LaporanPenjualan() {
       const start = new Date(startDate);
       const end = new Date(endDate);
       data = data.filter((tx) => {
-        const txDate = new Date(tx.date);
+        const txDate = tx.createdAt?.toDate
+          ? tx.createdAt.toDate()
+          : new Date(tx.createdAt);
         return txDate >= start && txDate <= end;
       });
     }
@@ -65,8 +67,7 @@ export default function LaporanPenjualan() {
         (tx) =>
           tx.items.some((item) =>
             item.name.toLowerCase().includes(search.toLowerCase())
-          ) ||
-          tx.paymentMethod?.toLowerCase().includes(search.toLowerCase())
+          ) || tx.paymentMethod?.toLowerCase().includes(search.toLowerCase())
       );
     }
 
@@ -76,7 +77,10 @@ export default function LaporanPenjualan() {
   // 🔹 Data untuk grafik penjualan per hari
   const grafikData = Object.values(
     filteredData.reduce((acc, tx) => {
-      const tgl = format(new Date(tx.date), "dd/MM");
+      const tgl = format(
+        tx.createdAt?.toDate ? tx.createdAt.toDate() : new Date(tx.createdAt),
+        "dd/MM"
+      );
       const total = tx.totalPrice || 0;
       if (!acc[tgl]) acc[tgl] = { tgl, total: 0 };
       acc[tgl].total += total;
@@ -91,8 +95,11 @@ export default function LaporanPenjualan() {
     doc.autoTable({
       head: [["Tanggal", "Total Harga", "Metode Pembayaran", "Jumlah Item"]],
       body: filteredData.map((tx) => [
-        format(new Date(tx.date), "dd/MM/yyyy HH:mm"),
-        "Rp " + tx.totalPrice.toLocaleString(),
+        format(
+          tx.createdAt?.toDate ? tx.createdAt.toDate() : new Date(tx.createdAt),
+          "dd/MM/yyyy HH:mm"
+        ),
+        "Rp " + (tx.totalPrice ? tx.totalPrice.toLocaleString() : "0"),
         tx.paymentMethod,
         tx.items.length,
       ]),
@@ -187,10 +194,15 @@ export default function LaporanPenjualan() {
               filteredData.map((tx) => (
                 <tr key={tx.id}>
                   <td className="p-2 border">
-                    {format(new Date(tx.date), "dd/MM/yyyy HH:mm")}
+                    {format(
+                      tx.createdAt?.toDate
+                        ? tx.createdAt.toDate()
+                        : new Date(tx.createdAt),
+                      "dd/MM/yyyy HH:mm"
+                    )}
                   </td>
                   <td className="p-2 border">
-                    Rp {tx.totalPrice.toLocaleString()}
+                    Rp {(tx.totalPrice ?? 0).toLocaleString()}
                   </td>
                   <td className="p-2 border">{tx.paymentMethod}</td>
                   <td className="p-2 border">{tx.items.length}</td>
