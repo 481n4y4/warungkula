@@ -1,5 +1,4 @@
-// src/pages/LaporanPenjualan.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { format, isSameDay } from "date-fns";
@@ -13,12 +12,19 @@ import {
   CartesianGrid,
 } from "recharts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faFilePdf } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+const laporanRef = useRef();
 
 export default function LaporanPenjualan() {
   const [transaksi, setTransaksi] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(
+    format(new Date(), "yyyy-MM-dd")
+  );
+  const laporanRef = useRef();
   const navigate = useNavigate();
 
   // 🔹 Ambil data transaksi dari Firestore
@@ -47,6 +53,7 @@ export default function LaporanPenjualan() {
   // 🔹 Grafik Penjualan 30 Hari Terakhir
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(now.getDate() - 29);
+
   const last30DaysData = filteredData.filter((tx) => {
     const txDate = tx.createdAt?.toDate
       ? tx.createdAt.toDate()
@@ -67,6 +74,7 @@ export default function LaporanPenjualan() {
     }, {})
   );
 
+  // 🔹 Tambah tanggal kosong
   for (let i = 0; i < 30; i++) {
     const date = new Date(thirtyDaysAgo);
     date.setDate(thirtyDaysAgo.getDate() + i);
@@ -82,7 +90,7 @@ export default function LaporanPenjualan() {
     return ma * 100 + da - (mb * 100 + db);
   });
 
-  // 🔹 Tabel 7 Hari Terakhir (per hari)
+  // 🔹 Tabel 7 Hari Terakhir
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 6);
   const last7Days = [];
@@ -109,26 +117,42 @@ export default function LaporanPenjualan() {
 
   const total7Hari = last7Days.reduce((acc, d) => acc + d.total, 0);
 
-  // 🔹 Data Hari Ini
-  const today = new Date();
-  const todayData = filteredData.filter((tx) => {
+  // 🔹 Data Berdasarkan Tanggal Pilihan
+  const chosenDate = new Date(selectedDate);
+  const chosenDayData = filteredData.filter((tx) => {
     const txDate = tx.createdAt?.toDate
       ? tx.createdAt.toDate()
       : new Date(tx.createdAt);
-    return isSameDay(txDate, today);
+    return isSameDay(txDate, chosenDate);
   });
-  const totalTodaySales = todayData.reduce(
+  const totalChosenSales = chosenDayData.reduce(
     (sum, tx) => sum + (Number(tx.total) || 0),
     0
   );
 
-  // 🔹 Formatter Rupiah
   const rupiahFormatter = (value) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(value);
+
+  const exportPDF = async () => {
+    const element = laporanRef.current;
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      backgroundColor: "#ffffff", // hindari error warna okLCH
+      useCORS: true,
+    });
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`laporan-penjualan-${new Date().toLocaleDateString("id-ID")}.pdf`);
+  };
 
   return (
     <section>
@@ -145,51 +169,47 @@ export default function LaporanPenjualan() {
         </h1>
       </div>
 
-      <div className="p-6">
-        {/* 📈 Grafik Penjualan 30 Hari Terakhir */}
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-          <h2 className="text-lg font-semibold mb-3">
-            Grafik Penjualan 30 Hari Terakhir
-          </h2>
-          {grafikData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={grafikData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="tgl" />
-                <YAxis
-                  tickFormatter={(value) =>
-                    value >= 1000 ? value / 1000 + "k" : value
-                  }
-                  width={70}
-                />
-                <Tooltip
-                  formatter={(value) => rupiahFormatter(value)}
-                  labelFormatter={(label) => `Tanggal: ${label}`}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="total"
-                  stroke="#4F46E5"
-                  strokeWidth={3}
-                  dot={{
-                    r: 5,
-                    stroke: "#4F46E5",
-                    strokeWidth: 2,
-                    fill: "#fff",
-                  }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-500 text-center py-10">
-              Tidak ada data penjualan dalam 30 hari terakhir.
-            </p>
-          )}
+      {/* Semua konten laporan dibungkus ref ini */}
+      <div className="p-6 space-y-6 bg-gray-50" ref={laporanRef}>
+        {/* 📈 Grafik */}
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold mb-3">
+              Grafik Penjualan 30 Hari Terakhir
+            </h2>
+            <button
+              onClick={exportPDF}
+              className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 flex items-center gap-2"
+            >
+              <FontAwesomeIcon icon={faFilePdf} />
+              Ekspor PDF
+            </button>
+          </div>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={grafikData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="tgl" />
+              <YAxis
+                tickFormatter={(v) => (v >= 1000 ? v / 1000 + "k" : v)}
+                width={70}
+              />
+              <Tooltip
+                formatter={(v) => rupiahFormatter(v)}
+                labelFormatter={(l) => `Tanggal: ${l}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#4F46E5"
+                strokeWidth={3}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* 📊 Tabel Penjualan 7 Hari Terakhir */}
-        <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto mb-6">
+        {/* 📊 Tabel 7 Hari Terakhir */}
+        <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
           <h2 className="text-lg font-semibold mb-3">
             Penjualan 7 Hari Terakhir
           </h2>
@@ -219,10 +239,16 @@ export default function LaporanPenjualan() {
           </table>
         </div>
 
-        {/* 📅 Tabel Penjualan Hari Ini */}
+        {/* 📅 Pilih Tanggal */}
         <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
           <h2 className="text-lg font-semibold mb-3">
-            Penjualan Hari Ini ({format(today, "dd/MM/yyyy")})
+            Penjualan Tanggal{" "}
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="border rounded px-2 py-1 ml-2"
+            />
           </h2>
           <table className="w-full text-left border-collapse">
             <thead>
@@ -234,8 +260,8 @@ export default function LaporanPenjualan() {
               </tr>
             </thead>
             <tbody>
-              {todayData.length > 0 ? (
-                todayData.map((tx) => {
+              {chosenDayData.length > 0 ? (
+                chosenDayData.map((tx) => {
                   const paymentLabels = ["Tunai", "QRIS", "Transfer", "Debit"];
                   const paymentMethod = isNaN(tx.paymentMethod)
                     ? tx.paymentMethod
@@ -250,9 +276,7 @@ export default function LaporanPenjualan() {
                           "HH:mm"
                         )}
                       </td>
-                      <td className="p-2">
-                        Rp {(tx.total ?? 0).toLocaleString()}
-                      </td>
+                      <td className="p-2">{rupiahFormatter(tx.total ?? 0)}</td>
                       <td className="p-2">{paymentMethod}</td>
                       <td className="p-2">{tx.items?.length ?? 0}</td>
                     </tr>
@@ -261,15 +285,15 @@ export default function LaporanPenjualan() {
               ) : (
                 <tr>
                   <td colSpan="4" className="p-3 text-center text-gray-500">
-                    Belum ada transaksi hari ini.
+                    Tidak ada transaksi pada tanggal ini.
                   </td>
                 </tr>
               )}
               <tr className="bg-gray-50 font-semibold">
                 <td colSpan="3" className="p-2 text-right">
-                  Total Penjualan Hari Ini:
+                  Total Penjualan:
                 </td>
-                <td className="p-2">{rupiahFormatter(totalTodaySales)}</td>
+                <td className="p-2">{rupiahFormatter(totalChosenSales)}</td>
               </tr>
             </tbody>
           </table>
