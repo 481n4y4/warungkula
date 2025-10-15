@@ -16,7 +16,6 @@ import { faArrowLeft, faFilePdf } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-const laporanRef = useRef();
 
 export default function LaporanPenjualan() {
   const [transaksi, setTransaksi] = useState([]);
@@ -27,7 +26,7 @@ export default function LaporanPenjualan() {
   const laporanRef = useRef();
   const navigate = useNavigate();
 
-  // 🔹 Ambil data transaksi dari Firestore
+  // 🔹 Ambil data transaksi
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -50,7 +49,7 @@ export default function LaporanPenjualan() {
 
   const now = new Date();
 
-  // 🔹 Grafik Penjualan 30 Hari Terakhir
+  // 🔹 Grafik 30 Hari Terakhir
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(now.getDate() - 29);
 
@@ -74,7 +73,6 @@ export default function LaporanPenjualan() {
     }, {})
   );
 
-  // 🔹 Tambah tanggal kosong
   for (let i = 0; i < 30; i++) {
     const date = new Date(thirtyDaysAgo);
     date.setDate(thirtyDaysAgo.getDate() + i);
@@ -90,11 +88,10 @@ export default function LaporanPenjualan() {
     return ma * 100 + da - (mb * 100 + db);
   });
 
-  // 🔹 Tabel 7 Hari Terakhir
+  // 🔹 7 Hari Terakhir
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 6);
   const last7Days = [];
-
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(now.getDate() - i);
@@ -114,10 +111,9 @@ export default function LaporanPenjualan() {
       jumlah: dayTx.length,
     });
   }
-
   const total7Hari = last7Days.reduce((acc, d) => acc + d.total, 0);
 
-  // 🔹 Data Berdasarkan Tanggal Pilihan
+  // 🔹 Berdasarkan tanggal pilihan
   const chosenDate = new Date(selectedDate);
   const chosenDayData = filteredData.filter((tx) => {
     const txDate = tx.createdAt?.toDate
@@ -137,85 +133,101 @@ export default function LaporanPenjualan() {
       minimumFractionDigits: 0,
     }).format(value);
 
+  // 🔹 Ekspor PDF
   const exportPDF = async () => {
     const element = laporanRef.current;
+    const oldStyle = element.getAttribute("style");
+    element.setAttribute(
+      "style",
+      `${
+        oldStyle || ""
+      }; background-color: white !important; color: inherit !important;`
+    );
+
     const canvas = await html2canvas(element, {
       scale: 2,
-      backgroundColor: "#ffffff", // hindari error warna okLCH
+      backgroundColor: "#ffffff",
       useCORS: true,
+      ignoreElements: (el) =>
+        getComputedStyle(el).color.includes("oklch") ||
+        getComputedStyle(el).backgroundColor.includes("oklch"),
     });
-    const imgData = canvas.toDataURL("image/png");
 
+    if (oldStyle) element.setAttribute("style", oldStyle);
+    else element.removeAttribute("style");
+
+    const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     pdf.save(`laporan-penjualan-${new Date().toLocaleDateString("id-ID")}.pdf`);
   };
 
   return (
-    <section>
-      {/* Header */}
-      <div className="bg-white shadow-sm p-4 flex items-center">
+    <section className="min-h-screen bg-gray-50 overflow-x-hidden">
+      {/* 🧭 Sticky Navbar */}
+      <div className="bg-white shadow-sm p-4 flex items-center sticky top-0 z-50">
         <button
           onClick={() => navigate("/dashboard")}
           className="text-gray-600 hover:text-gray-900 transition"
         >
           <FontAwesomeIcon icon={faArrowLeft} size="lg" />
         </button>
-        <h1 className="flex-1 text-center text-xl font-bold text-gray-800">
+        <h1 className="flex-1 text-center text-lg sm:text-xl font-bold text-gray-800">
           Laporan Penjualan
         </h1>
       </div>
 
-      {/* Semua konten laporan dibungkus ref ini */}
-      <div className="p-6 space-y-6 bg-gray-50" ref={laporanRef}>
+      {/* 📄 Konten */}
+      <div ref={laporanRef} className="p-4 sm:p-6 space-y-6">
         {/* 📈 Grafik */}
         <div className="bg-white p-4 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
+            <h2 className="text-base sm:text-lg font-semibold">
               Grafik Penjualan 30 Hari Terakhir
             </h2>
             <button
               onClick={exportPDF}
-              className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 flex items-center gap-2"
+              className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <FontAwesomeIcon icon={faFilePdf} />
               Ekspor PDF
             </button>
           </div>
 
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={grafikData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="tgl" />
-              <YAxis
-                tickFormatter={(v) => (v >= 1000 ? v / 1000 + "k" : v)}
-                width={70}
-              />
-              <Tooltip
-                formatter={(v) => rupiahFormatter(v)}
-                labelFormatter={(l) => `Tanggal: ${l}`}
-              />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="#4F46E5"
-                strokeWidth={3}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[250px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={grafikData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="tgl" />
+                <YAxis
+                  tickFormatter={(v) => (v >= 1000 ? v / 1000 + "k" : v)}
+                  width={60}
+                />
+                <Tooltip
+                  formatter={(v) => rupiahFormatter(v)}
+                  labelFormatter={(l) => `Tanggal: ${l}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#4F46E5"
+                  strokeWidth={3}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        {/* 📊 Tabel 7 Hari Terakhir */}
+        {/* 📊 7 Hari Terakhir */}
         <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-          <h2 className="text-lg font-semibold mb-3">
+          <h2 className="text-base sm:text-lg font-semibold mb-3">
             Penjualan 7 Hari Terakhir
           </h2>
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[500px]">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-gray-100 text-sm sm:text-base">
                 <th className="p-2">Tanggal</th>
                 <th className="p-2">Jumlah Transaksi</th>
                 <th className="p-2">Total Penjualan</th>
@@ -223,13 +235,13 @@ export default function LaporanPenjualan() {
             </thead>
             <tbody>
               {last7Days.map((d) => (
-                <tr key={d.tanggal}>
+                <tr key={d.tanggal} className="text-sm sm:text-base">
                   <td className="p-2">{d.tanggal}</td>
                   <td className="p-2">{d.jumlah}</td>
                   <td className="p-2">{rupiahFormatter(d.total)}</td>
                 </tr>
               ))}
-              <tr className="bg-gray-50 font-semibold">
+              <tr className="bg-gray-50 font-semibold text-sm sm:text-base">
                 <td colSpan="2" className="p-2 text-right">
                   Total 7 Hari:
                 </td>
@@ -239,20 +251,20 @@ export default function LaporanPenjualan() {
           </table>
         </div>
 
-        {/* 📅 Pilih Tanggal */}
+        {/* 📅 Tabel per tanggal */}
         <div className="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
-          <h2 className="text-lg font-semibold mb-3">
-            Penjualan Tanggal{" "}
+          <h2 className="text-base sm:text-lg font-semibold mb-3 flex flex-col sm:flex-row sm:items-center gap-2">
+            Penjualan Tanggal
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="border rounded px-2 py-1 ml-2"
+              className="border rounded px-2 py-1"
             />
           </h2>
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-gray-100 text-sm sm:text-base">
                 <th className="p-2">Jam</th>
                 <th className="p-2">Total Harga</th>
                 <th className="p-2">Metode Pembayaran</th>
@@ -267,7 +279,7 @@ export default function LaporanPenjualan() {
                     ? tx.paymentMethod
                     : paymentLabels[tx.paymentMethod] || "Tidak Diketahui";
                   return (
-                    <tr key={tx.id}>
+                    <tr key={tx.id} className="text-sm sm:text-base">
                       <td className="p-2">
                         {format(
                           tx.createdAt?.toDate
@@ -289,7 +301,7 @@ export default function LaporanPenjualan() {
                   </td>
                 </tr>
               )}
-              <tr className="bg-gray-50 font-semibold">
+              <tr className="bg-gray-50 font-semibold text-sm sm:text-base">
                 <td colSpan="3" className="p-2 text-right">
                   Total Penjualan:
                 </td>
