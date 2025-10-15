@@ -133,35 +133,90 @@ export default function LaporanPenjualan() {
       minimumFractionDigits: 0,
     }).format(value);
 
-  // 🔹 Ekspor PDF
   const exportPDF = async () => {
     const element = laporanRef.current;
-    const oldStyle = element.getAttribute("style");
-    element.setAttribute(
-      "style",
-      `${
-        oldStyle || ""
-      }; background-color: white !important; color: inherit !important;`
-    );
+    if (!element) return;
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      ignoreElements: (el) =>
-        getComputedStyle(el).color.includes("oklch") ||
-        getComputedStyle(el).backgroundColor.includes("oklch"),
-    });
+    // 🔍 Cari SVG Recharts
+    const svg = element.querySelector("svg");
+    let svgImg = null;
 
-    if (oldStyle) element.setAttribute("style", oldStyle);
-    else element.removeAttribute("style");
+    if (svg) {
+      // Ambil ukuran SVG
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const svgUrl = URL.createObjectURL(svgBlob);
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`laporan-penjualan-${new Date().toLocaleDateString("id-ID")}.pdf`);
+      // Buat image dari SVG
+      svgImg = document.createElement("img");
+      svgImg.src = svgUrl;
+      svgImg.style.width = svg.getBoundingClientRect().width + "px";
+      svgImg.style.height = svg.getBoundingClientRect().height + "px";
+      svgImg.style.display = "block";
+      svgImg.style.margin = "0 auto";
+    }
+
+    // 🔹 Clone tampilan laporan agar tetap mode desktop
+    const clone = element.cloneNode(true);
+    clone.style.width = "1024px";
+    clone.style.background = "white";
+    clone.style.padding = "24px";
+    clone.style.color = "black";
+    clone.style.position = "fixed";
+    clone.style.top = "0";
+    clone.style.left = "0";
+    clone.style.zIndex = "9999";
+    clone.style.visibility = "visible";
+    clone.style.opacity = "1";
+    clone.style.transform = "none";
+
+    // 🔄 Ganti SVG asli di clone dengan versi gambar
+    const svgInClone = clone.querySelector("svg");
+    if (svgInClone && svgImg) {
+      svgInClone.replaceWith(svgImg);
+    }
+
+    document.body.appendChild(clone);
+
+    try {
+      // 🔧 Tunggu render <img> selesai
+      await new Promise((res) => setTimeout(res, 800));
+
+      // 🔧 Perbaiki warna OKLCH (kadang error)
+      clone.querySelectorAll("*").forEach((el) => {
+        const style = window.getComputedStyle(el);
+        if (style.color.includes("oklch")) el.style.color = "#000000";
+        if (style.backgroundColor.includes("oklch"))
+          el.style.backgroundColor = "#ffffff";
+      });
+
+      // 📸 Render clone jadi canvas
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        foreignObjectRendering: true,
+        windowWidth: 1280,
+        windowHeight: 800,
+      });
+
+      // 💾 Masukkan ke PDF
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(
+        `laporan-penjualan-${new Date().toLocaleDateString("id-ID")}.pdf`
+      );
+    } catch (err) {
+      console.error("Gagal ekspor PDF:", err);
+    } finally {
+      document.body.removeChild(clone);
+    }
   };
 
   return (
@@ -189,7 +244,11 @@ export default function LaporanPenjualan() {
             </h2>
             <button
               onClick={exportPDF}
-              className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 flex items-center justify-center gap-2 text-sm sm:text-base"
+              style={{
+                backgroundColor: "#ef4444", // ini warna rgb dari bg-red-500
+                color: "white",
+              }}
+              className="px-3 py-2 rounded-md hover:opacity-90 flex items-center justify-center text-center gap-2 text-sm sm:text-base"
             >
               <FontAwesomeIcon icon={faFilePdf} />
               Ekspor PDF
