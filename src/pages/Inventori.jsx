@@ -31,7 +31,7 @@ export default function Inventory() {
 
   return (
     <section>
-      <div className="bg-white shadow-md p-4 flex items-center">
+      <nav className="bg-white shadow-md p-4 flex items-center top-0 z-50 sticky">
         <button
           onClick={() => navigate("/dashboard")}
           className="text-gray-600 hover:text-gray-900 transition"
@@ -41,7 +41,7 @@ export default function Inventory() {
         <h1 className="flex-1 text-center text-xl font-bold text-gray-800">
           Inventori Barang
         </h1>
-      </div>
+      </nav>
       <div className="p-4 sm:p-6 min-h-screen">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6">

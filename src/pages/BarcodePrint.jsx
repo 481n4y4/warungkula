@@ -40,7 +40,7 @@ export default function BarcodePrint() {
 
   return (
     <section>
-      <div className="bg-white shadow-md p-4 flex items-center">
+      <nav className="bg-white shadow-md p-4 flex items-center top-0 z-50 sticky">
         <button
           onClick={() => navigate("/inventori")}
           className="text-gray-600 hover:text-gray-900 transition"
@@ -50,7 +50,7 @@ export default function BarcodePrint() {
         <h1 className="flex-1 text-center text-lg font-semibold text-gray-800">
           Cetak QR Code - {item.name}
         </h1>
-      </div>
+      </nav>
       <div className="p-4 sm:p-6 max-w-6xl mx-auto print:p-0">
         {/* Grid responsif untuk QR code */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 print:grid-cols-4">

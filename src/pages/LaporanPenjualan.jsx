@@ -237,7 +237,7 @@ export default function LaporanPenjualan() {
       {/* 📄 Konten */}
       <div ref={laporanRef} className="p-4 sm:p-6 space-y-6">
         {/* 📈 Grafik */}
-        <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="bg-white p-4 rounded-lg shadow-md ">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
             <h2 className="text-base sm:text-lg font-semibold">
               Grafik Penjualan 30 Hari Terakhir

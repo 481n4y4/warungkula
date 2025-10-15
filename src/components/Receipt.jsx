@@ -43,7 +43,7 @@ export default function Receipt() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow-sm p-4 flex items-center">
+      <nav className="bg-white shadow-sm p-4 flex items-center top-0 z-50 sticky">
         <button
           onClick={() => navigate(-1)}
           className="text-gray-600 hover:text-gray-900 transition"
@@ -53,7 +53,7 @@ export default function Receipt() {
         <h1 className="flex-1 text-center text-lg font-semibold text-gray-800">
           Struk Transaksi
         </h1>
-      </div>
+      </nav>
 
       {/* Body */}
       <div className="flex justify-center py-6 px-4">

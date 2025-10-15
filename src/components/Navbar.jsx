@@ -28,7 +28,7 @@ export default function Navbar() {
 
   if (!user) return null;
   return (
-    <nav className="bg-white shadow-md p-4 flex justify-between items-center">
+    <nav className="bg-white shadow-md p-4 flex justify-between items-center top-0 z-50 sticky">
       <h1 className="text-2xl font-bold text-blue-700">WarungGw</h1>
       <div className="flex items-center gap-4">
         <span className="text-gray-600">{user.email}</span>

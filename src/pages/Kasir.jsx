@@ -188,7 +188,7 @@ export default function Kasir() {
   // ====================== UI ===========================
   return (
     <section>
-      <div className="bg-white shadow-sm p-4 flex items-center">
+      <nav className="bg-white shadow-sm p-4 flex items-center top-0 z-50 sticky">
         <button
           onClick={() => navigate("/dashboard")}
           className="text-gray-600 hover:text-gray-900 transition"
@@ -198,7 +198,7 @@ export default function Kasir() {
         <h1 className="flex-1 text-center text-xl font-bold text-gray-800">
           Mode Kasir
         </h1>
-      </div>
+      </nav>
 
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
         <ToastContainer position="top-right" autoClose={2500} />

@@ -82,7 +82,7 @@ export default function EditBarang() {
 
   return (
     <section>
-      <div className="bg-white shadow-md p-4 flex items-center">
+      <nav className="bg-white shadow-md p-4 flex items-center top-0 z-50 sticky">
         <button
           onClick={() => navigate("/inventori")}
           className="text-gray-600 hover:text-gray-900 transition"
@@ -92,7 +92,7 @@ export default function EditBarang() {
         <h1 className="flex-1 text-center text-lg font-semibold text-gray-800">
           Edit Barang
         </h1>
-      </div>
+      </nav>
     <div>
       {/* Form */}
       <form
