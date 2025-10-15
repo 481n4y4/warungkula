@@ -10,6 +10,10 @@ import {
   doc,
   runTransaction,
   serverTimestamp,
+  getDoc,
+  updateDoc,
+  setDoc,
+  addDoc,
 } from "firebase/firestore";
 import bcrypt from "bcryptjs"
 
@@ -200,4 +204,43 @@ export async function verifyOperatorLogin(username, password) {
     id: snapshot.docs[0].id,
     ...operator,
   };
+}
+
+
+// Akun
+// Ambil data admin
+export async function getAdminData() {
+  const adminRef = doc(db, "admins", "main_admin"); // misal pakai ID tetap
+  const snap = await getDoc(adminRef);
+  if (!snap.exists()) {
+    return null;
+  }
+  return { id: snap.id, ...snap.data() };
+}
+
+// Inisialisasi admin baru (kalau belum ada)
+export async function initAdminAccount(username, password) {
+  const adminRef = doc(db, "admins", "main_admin");
+  const hashed = await bcrypt.hash(password, 10);
+  await setDoc(adminRef, {
+    username,
+    password: hashed,
+    createdAt: new Date(),
+  });
+  return true;
+}
+
+// Ubah password admin (dengan verifikasi password lama)
+export async function changeAdminPassword(oldPass, newPass) {
+  const adminRef = doc(db, "admins", "main_admin");
+  const snap = await getDoc(adminRef);
+  if (!snap.exists()) throw new Error("Admin data not found");
+
+  const admin = snap.data();
+  const isValid = await bcrypt.compare(oldPass, admin.password);
+  if (!isValid) throw new Error("Password lama salah");
+
+  const hashedNew = await bcrypt.hash(newPass, 10);
+  await updateDoc(adminRef, { password: hashedNew });
+  return true;
 }
