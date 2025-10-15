@@ -79,8 +79,10 @@ WARUNGKULA/
 │   │   ├── css/             
 │   │   │     └── index.css  
 │   │   └── img/             
+│   │        └── WarungKula.png
 │   ├── components/          
-│   │   └── Navbar.jsx       
+│   │   ├── Navbar.jsx
+│   │   └── Receipt.jsx
 │   ├── firebase/            
 │   │   └── firebase.js      
 │   ├── pages/               
@@ -90,7 +92,8 @@ WARUNGKULA/
 │   │   ├── Inventori.jsx     
 │   │   ├── Kasir.jsx         
 │   │   ├── Login.jsx        
-│   │   ├── Register.jsx      
+│   │   ├── Register.jsx  
+│   │   ├── LaporanPenjualan.jsx
 │   │   └── TambahBarang.jsx  
 │   ├── services/             
 │   │   └── inventoriService.js  
