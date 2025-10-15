@@ -11,6 +11,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
+import bcrypt from "bcryptjs"
 
 const firebaseConfig = {
   apiKey: "AIzaSyAtqfZw645PJ_5hJuqaid8zuRzFXPlYNHw",
@@ -27,10 +28,14 @@ export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 
+
+// Inventori
 // --- collection name constants (penting: didefinisikan) ---
 const PRODUCTS_COL = "inventori";
 const TRANSACTIONS_COL = "transaksi";
 
+
+// Kasir
 /**
  * Cari satu produk berdasarkan barcode (mengembalikan objek { id, ...data } atau null)
  */
@@ -132,4 +137,67 @@ export async function createTransactionWithStockUpdate(txPayload) {
       createdAt: serverTimestamp(),
     });
   });
+}
+
+
+// Operator
+// 1️⃣ Ambil semua operator
+export async function getAllOperators() {
+  const snapshot = await getDocs(collection(db, "operators"));
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+}
+
+// 2️⃣ Verifikasi password admin
+export async function verifyAdminPassword(inputPassword) {
+  const q = query(collection(db, "admins"));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) throw new Error("Admin data not found");
+
+  const adminData = snapshot.docs[0].data();
+  const isValid = await bcrypt.compare(inputPassword, adminData.password);
+  return isValid;
+}
+
+// 3️⃣ Tambah operator dengan verifikasi admin
+export async function addOperatorWithAdminAuth(newOperator, adminPassword) {
+  const isAdminValid = await verifyAdminPassword(adminPassword);
+  if (!isAdminValid) throw new Error("Invalid admin password");
+
+  const { username, password, role } = newOperator;
+
+  if (!username || !password || !role) {
+    throw new Error("Missing operator data");
+  }
+
+  // Hash password operator sebelum simpan
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await addDoc(collection(db, "operators"), {
+    username,
+    password: hashedPassword,
+    role,
+    createdAt: new Date(),
+  });
+
+  return true;
+}
+
+// 4️⃣ Verifikasi operator login (nanti buat "Buka Toko")
+export async function verifyOperatorLogin(username, password) {
+  const q = query(collection(db, "operators"), where("username", "==", username));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) throw new Error("Operator not found");
+
+  const operator = snapshot.docs[0].data();
+  const isValid = await bcrypt.compare(password, operator.password);
+
+  if (!isValid) throw new Error("Invalid password");
+
+  return {
+    id: snapshot.docs[0].id,
+    ...operator,
+  };
 }

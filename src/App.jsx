@@ -9,6 +9,7 @@ import BarcodePrint from "./pages/BarcodePrint";
 import Kasir from "./pages/Kasir";
 import Receipt from "./components/Receipt";
 import Laporan from "./pages/LaporanPenjualan"
+import Operator from "./pages/Operator"
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/kasir" element={<Kasir />} />
         <Route path="/receipt" element={<Receipt />} />
         <Route path="/laporan" element={<Laporan />} />
+        <Route path="/operator" element={<Operator />} />
       </Routes>
     </Router>
   );
