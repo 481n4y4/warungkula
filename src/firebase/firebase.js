@@ -39,9 +39,10 @@ const PRODUCTS_COL = "inventori";
 const TRANSACTIONS_COL = "transaksi";
 const OPERATORS_COL = "operators";
 const ADMINS_COL = "admins";
+const STORE_SESSIONS_COL = "store_sessions";
 
 // ======================================================
-// 🛒 Kasir & Transaksi
+// Kasir & Transaksi
 // ======================================================
 
 export async function getProductByBarcode(barcode) {
@@ -114,7 +115,7 @@ export async function createTransactionWithStockUpdate(txPayload) {
 }
 
 // ======================================================
-// 👤 Operator & Admin Management
+// Operator & Admin Management
 // ======================================================
 
 // Ambil semua operator
@@ -196,7 +197,7 @@ export async function updateOperator(id, updatedData, adminPassword) {
 }
 
 // ======================================================
-// 🔑 Admin Akun & Pengaturan
+// Admin Akun & Pengaturan
 // ======================================================
 
 export async function getAdminData() {
@@ -237,4 +238,73 @@ export async function changeAdminPassword(oldPass, newPass) {
   return true;
 }
 
+// ======================================================
+// Membuka Toko Baru
+// ======================================================
+export async function openStoreSession(username, password, cashStart) {
+  // verifikasi login operator
+  const operator = await verifyOperatorLogin(username, password);
+  if (!operator) {
+    throw new Error("Username atau password salah");
+  }
 
+  // cek apakah sudah ada toko yang sedang dibuka
+  const active = await getActiveStoreSession();
+  if (active) {
+    throw new Error("Toko sudah dibuka oleh " + active.operatorName);
+  }
+
+  // buat session baru
+  const ref = collection(db, STORE_SESSIONS_COL);
+  await addDoc(ref, {
+    operatorId: operator.id,
+    operatorName: operator.username,
+    cashStart: parseInt(cashStart),
+    openedAt: new Date(),
+    isOpen: true,
+  });
+
+  return operator; // return operator untuk langsung diarahkan ke mode kasir
+}
+
+/**
+ * Menutup toko yang sedang aktif
+ */
+export async function closeStoreSession(adminPassword) {
+  // ambil session aktif
+  const active = await getActiveStoreSession();
+  if (!active) {
+    throw new Error("Tidak ada toko yang sedang dibuka");
+  }
+
+  // verifikasi password admin (opsional, bisa pakai operator juga)
+  // misalnya ambil dokumen admin utama
+  const adminDoc = await getDocs(collection(db, "admins"));
+  const admin = adminDoc.docs[0]?.data();
+  const isMatch = await bcrypt.compare(adminPassword, admin.password);
+  if (!isMatch) throw new Error("Password admin salah");
+
+  // update session
+  const sessionDoc = doc(db, STORE_SESSIONS_COL, active.id);
+  await updateDoc(sessionDoc, {
+    isOpen: false,
+    closedAt: new Date(),
+  });
+
+  return true;
+}
+
+/**
+ * Mengecek apakah toko sedang aktif
+ */
+export async function getActiveStoreSession() {
+  const q = query(
+    collection(db, STORE_SESSIONS_COL),
+    where("isOpen", "==", true)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+
+  const docSnap = snapshot.docs[0];
+  return { id: docSnap.id, ...docSnap.data() };
+}

@@ -6,6 +6,7 @@ import {
   faPlus,
   faTrash,
   faEdit,
+  faSearch,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,6 +20,7 @@ export default function Operator() {
   const navigate = useNavigate();
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({
     username: "",
@@ -53,13 +55,17 @@ export default function Operator() {
     }
   };
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const filteredOperators = operators.filter((op) =>
+    op.username.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // const handleChange = (e) => {
+  //   setForm({ ...form, [e.target.name]: e.target.value });
+  // };
 
   const handleAdd = async (e) => {
     e.preventDefault();
     setMsg({ type: "", text: "" });
-
     try {
       await addOperator(
         form.username,
@@ -79,7 +85,6 @@ export default function Operator() {
   const handleEdit = async (e) => {
     e.preventDefault();
     setMsg({ type: "", text: "" });
-
     try {
       await updateOperator(
         editData.id,
@@ -111,35 +116,55 @@ export default function Operator() {
   };
 
   return (
-    <section className="min-h-screen bg-gray-50">
+    <section>
       {/* Navbar */}
-      <nav className="bg-white shadow-md p-3 sm:p-4 flex items-center sticky top-0 z-50">
+      <nav className="bg-white shadow-md p-4 flex items-center sticky top-0 z-50">
         <button
           onClick={() => navigate("/dashboard")}
           className="text-gray-600 hover:text-gray-900 transition"
         >
           <FontAwesomeIcon icon={faArrowLeft} size="lg" />
         </button>
-        <h1 className="flex-1 text-center text-lg sm:text-xl font-bold text-gray-800">
+        <h1 className="flex-1 text-center text-xl font-bold text-gray-800">
           Data Operator
         </h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-1 sm:gap-2 hover:bg-blue-700 transition text-sm sm:text-base"
+          className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
         >
           <FontAwesomeIcon icon={faPlus} /> Tambah
         </button>
       </nav>
 
-      {/* Tabel Data */}
-      <div className="p-3 sm:p-6">
+      {/* Konten utama */}
+      <div className="p-4 max-w-5xl mx-auto">
+        {/* Search Bar */}
+        <div className="flex justify-center mb-4">
+          <div className="relative w-full sm:w-2/3 md:w-1/2">
+            <FontAwesomeIcon
+              icon={faSearch}
+              className="absolute left-3 top-3 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Cari operator..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Tabel data */}
         {loading ? (
           <p className="text-center text-gray-500">Memuat data...</p>
-        ) : operators.length === 0 ? (
-          <p className="text-center text-gray-500">Belum ada operator.</p>
+        ) : filteredOperators.length === 0 ? (
+          <p className="text-center text-gray-500">
+            {search ? "Operator tidak ditemukan." : "Belum ada operator."}
+          </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full rounded-lg mt-4 text-center border border-gray-200 text-sm sm:text-base">
+            <table className="w-full rounded-lg mt-4 text-center border border-gray-200">
               <thead className="bg-gray-200">
                 <tr>
                   <th className="p-2">No</th>
@@ -149,7 +174,7 @@ export default function Operator() {
                 </tr>
               </thead>
               <tbody>
-                {operators.map((op, i) => (
+                {filteredOperators.map((op, i) => (
                   <tr
                     key={op.id}
                     className="bg-gray-50 hover:bg-gray-100 border-b"
@@ -157,7 +182,7 @@ export default function Operator() {
                     <td className="p-2">{i + 1}</td>
                     <td className="p-2">{op.username}</td>
                     <td className="p-2">{op.role}</td>
-                    <td className="p-2 flex justify-center gap-3">
+                    <td className="p-2">
                       <button
                         onClick={() => {
                           setEditData({
@@ -169,7 +194,7 @@ export default function Operator() {
                           });
                           setShowEditModal(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 mr-3"
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
@@ -188,182 +213,120 @@ export default function Operator() {
         )}
       </div>
 
-      {/* ===== Modal Tambah ===== */}
+      {/* Modal Tambah Operator */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-3">
-          <div className="bg-white p-6 rounded-lg w-full max-w-sm sm:max-w-md shadow-lg relative">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-3 right-4 text-gray-600 hover:text-gray-900"
-            >
-              ✕
-            </button>
-            <h2 className="text-xl font-bold text-center mb-4">
-              Tambah Operator Baru
-            </h2>
-            <form onSubmit={handleAdd} className="space-y-4 text-sm sm:text-base">
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={form.username}
-                  onChange={handleChange}
-                  required
-                  className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Role</label>
-                <select
-                  name="role"
-                  value={form.role}
-                  onChange={handleChange}
-                  className="w-full border rounded-md p-2 mt-1"
-                >
-                  <option>Kasir</option>
-                  <option>Admin</option>
-                </select>
-              </div>
-              <hr />
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Password Admin (untuk konfirmasi)
-                </label>
-                <input
-                  type="password"
-                  name="adminPassword"
-                  value={form.adminPassword}
-                  onChange={handleChange}
-                  required
-                  className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
-                />
-              </div>
-
-              {msg.text && (
-                <p
-                  className={`text-center text-sm ${
-                    msg.type === "error" ? "text-red-600" : "text-green-600"
-                  }`}
-                >
-                  {msg.text}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
-              >
-                Tambah Operator
-              </button>
-            </form>
-          </div>
-        </div>
+        <Modal
+          title="Tambah Operator Baru"
+          form={form}
+          setForm={setForm}
+          msg={msg}
+          onSubmit={handleAdd}
+          onClose={() => setShowModal(false)}
+          buttonLabel="Tambah Operator"
+        />
       )}
 
-      {/* ===== Modal Edit ===== */}
+      {/* Modal Edit Operator */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-3">
-          <div className="bg-white p-6 rounded-lg w-full max-w-sm sm:max-w-md shadow-lg relative">
-            <button
-              onClick={() => setShowEditModal(false)}
-              className="absolute top-3 right-4 text-gray-600 hover:text-gray-900"
-            >
-              ✕
-            </button>
-            <h2 className="text-xl font-bold text-center mb-4">Edit Operator</h2>
-            <form onSubmit={handleEdit} className="space-y-4 text-sm sm:text-base">
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={editData.username}
-                  onChange={(e) =>
-                    setEditData({ ...editData, username: e.target.value })
-                  }
-                  required
-                  className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Password Baru (kosongkan jika tidak diubah)
-                </label>
-                <input
-                  type="password"
-                  value={editData.password}
-                  onChange={(e) =>
-                    setEditData({ ...editData, password: e.target.value })
-                  }
-                  className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Role</label>
-                <select
-                  value={editData.role}
-                  onChange={(e) =>
-                    setEditData({ ...editData, role: e.target.value })
-                  }
-                  className="w-full border rounded-md p-2 mt-1"
-                >
-                  <option>Kasir</option>
-                  <option>Manager</option>
-                </select>
-              </div>
-              <hr />
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Password Admin (untuk konfirmasi)
-                </label>
-                <input
-                  type="password"
-                  value={editData.adminPassword}
-                  onChange={(e) =>
-                    setEditData({ ...editData, adminPassword: e.target.value })
-                  }
-                  required
-                  className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
-                />
-              </div>
-
-              {msg.text && (
-                <p
-                  className={`text-center text-sm ${
-                    msg.type === "error" ? "text-red-600" : "text-green-600"
-                  }`}
-                >
-                  {msg.text}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
-              >
-                Simpan Perubahan
-              </button>
-            </form>
-          </div>
-        </div>
+        <Modal
+          title="Edit Operator"
+          form={editData}
+          setForm={setEditData}
+          msg={msg}
+          onSubmit={handleEdit}
+          onClose={() => setShowEditModal(false)}
+          buttonLabel="Simpan Perubahan"
+          isEdit
+        />
       )}
     </section>
+  );
+}
+
+/* 🔹 Reusable Modal Component */
+function Modal({ title, form, setForm, msg, onSubmit, onClose, buttonLabel, isEdit }) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg w-96 shadow-lg relative">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-4 text-gray-600 hover:text-gray-900"
+        >
+          ✕
+        </button>
+        <h2 className="text-xl font-bold text-center mb-4">{title}</h2>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700">Username</label>
+            <input
+              type="text"
+              name="username"
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              required
+              className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700">
+              {isEdit ? "Password Baru (kosongkan jika tidak diubah)" : "Password"}
+            </label>
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
+              {...(!isEdit ? { required: true } : {})}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700">Role</label>
+            <select
+              name="role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="w-full border rounded-md p-2 mt-1"
+            >
+              <option>Kasir</option>
+              <option>Manager</option>
+            </select>
+          </div>
+          <hr />
+          <div>
+            <label className="text-sm font-medium text-gray-700">
+              Password Admin (untuk konfirmasi)
+            </label>
+            <input
+              type="password"
+              name="adminPassword"
+              value={form.adminPassword}
+              onChange={(e) =>
+                setForm({ ...form, adminPassword: e.target.value })
+              }
+              required
+              className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
+            />
+          </div>
+
+          {msg.text && (
+            <p
+              className={`text-center text-sm ${
+                msg.type === "error" ? "text-red-600" : "text-green-600"
+              }`}
+            >
+              {msg.text}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
+          >
+            {buttonLabel}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
