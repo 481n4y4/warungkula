@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import StoreWidget from "../components/StoreWidget";
 import {
   getAllOperators,
   getActiveStoreSession,
@@ -63,6 +64,11 @@ export default function Dashboard() {
 
       <div className="p-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-800">Dashboard</h2>
+
+        <div className="p-6 flex flex-col gap-6">
+          <StoreWidget onEnterCashier={() => navigate("/kasir")} />
+          {/* widget lain seperti laporan, inventori, dll */}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-xl p-6 shadow-md text-center">
