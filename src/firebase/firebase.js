@@ -14,9 +14,11 @@ import {
   updateDoc,
   setDoc,
   addDoc,
+  deleteDoc,
 } from "firebase/firestore";
-import bcrypt from "bcryptjs"
+import bcrypt from "bcryptjs";
 
+// --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyAtqfZw645PJ_5hJuqaid8zuRzFXPlYNHw",
   authDomain: "warungkula-54bf1.firebaseapp.com",
@@ -26,23 +28,22 @@ const firebaseConfig = {
   appId: "1:362575710267:web:7cf748e11480680c43741e",
 };
 
-// init
+// --- Initialize ---
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 
-
-// Inventori
-// --- collection name constants (penting: didefinisikan) ---
+// --- Collection Constants ---
 const PRODUCTS_COL = "inventori";
 const TRANSACTIONS_COL = "transaksi";
+const OPERATORS_COL = "operators";
+const ADMINS_COL = "admins";
 
+// ======================================================
+// 🛒 Kasir & Transaksi
+// ======================================================
 
-// Kasir
-/**
- * Cari satu produk berdasarkan barcode (mengembalikan objek { id, ...data } atau null)
- */
 export async function getProductByBarcode(barcode) {
   const q = query(
     collection(db, PRODUCTS_COL),
@@ -53,27 +54,13 @@ export async function getProductByBarcode(barcode) {
   return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
 }
 
-/**
- * Cari produk berdasarkan nama/term (simple client-side filter)
- * returns array of { id, ...data }
- */
 export async function searchProductsByName(name) {
-  const snapshot = await getDocs(collection(db, "inventori"));
-  const results = snapshot.docs
+  const snapshot = await getDocs(collection(db, PRODUCTS_COL));
+  return snapshot.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((p) => p.name.toLowerCase().includes(name.toLowerCase()));
-  console.log("Search results:", results);
-  return results;
 }
 
-/**
- * Create a transaction and atomically update product units' stock.
- * txPayload example:
- * {
- *   items: [{ productId, barcode, name, unit, qty, sellPrice, subtotal }, ...],
- *   subtotal, tax, total, payment, change, note
- * }
- */
 export async function createTransactionWithStockUpdate(txPayload) {
   if (
     !txPayload ||
@@ -86,55 +73,38 @@ export async function createTransactionWithStockUpdate(txPayload) {
   const transactionsRef = collection(db, TRANSACTIONS_COL);
 
   await runTransaction(db, async (t) => {
-    // 1️⃣ Siapkan semua ref produk
     const productRefs = txPayload.items.map((it) =>
       doc(db, PRODUCTS_COL, it.productId)
     );
 
-    // 2️⃣ Baca semua produk
     const productSnaps = await Promise.all(
       productRefs.map((ref) => t.get(ref))
     );
 
-    // 3️⃣ Validasi & update stok
-    const updatedUnitsList = [];
-
     for (let i = 0; i < txPayload.items.length; i++) {
       const it = txPayload.items[i];
       const pSnap = productSnaps[i];
-
       if (!pSnap.exists()) throw new Error(`Produk ${it.name} tidak ditemukan`);
 
       const pData = pSnap.data();
       const units = Array.isArray(pData.units) ? pData.units : [];
       const idx = units.findIndex((u) => u.unit === it.unit);
-      if (idx === -1)
-        throw new Error(`Unit ${it.unit} tidak ditemukan untuk ${it.name}`);
+      if (idx === -1) throw new Error(`Unit ${it.unit} tidak ditemukan`);
 
-      const currentStock = units[idx].stock || 0;
-      if (currentStock < it.qty) {
-        throw new Error(
-          `Stok tidak cukup untuk ${it.name} (${it.unit}). Sisa: ${currentStock}`
-        );
+      if (units[idx].stock < it.qty) {
+        throw new Error(`Stok tidak cukup untuk ${it.name} (${it.unit})`);
       }
 
-      units[idx] = { ...units[idx], stock: currentStock - it.qty };
-      updatedUnitsList.push({ ref: productRefs[i], units });
+      units[idx].stock -= it.qty;
+      t.update(productRefs[i], { units });
     }
 
-    // 4️⃣ Update semua stok
-    for (const { ref, units } of updatedUnitsList) {
-      t.update(ref, { units });
-    }
-
-    // 5️⃣ Hitung total harga & tambahkan field penting
     const totalPrice = txPayload.items.reduce(
       (sum, it) => sum + (it.sellPrice || 0) * (it.qty || 0),
       0
     );
 
-    const newTxRef = doc(transactionsRef);
-    t.set(newTxRef, {
+    t.set(doc(transactionsRef), {
       ...txPayload,
       totalPrice,
       paymentMethod: txPayload.paymentMethod || "Tunai",
@@ -143,43 +113,36 @@ export async function createTransactionWithStockUpdate(txPayload) {
   });
 }
 
+// ======================================================
+// 👤 Operator & Admin Management
+// ======================================================
 
-// Operator
-// 1️⃣ Ambil semua operator
+// Ambil semua operator
 export async function getAllOperators() {
-  const snapshot = await getDocs(collection(db, "operators"));
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  const snapshot = await getDocs(collection(db, OPERATORS_COL));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
-// 2️⃣ Verifikasi password admin
+// Verifikasi password admin
 export async function verifyAdminPassword(inputPassword) {
-  const q = query(collection(db, "admins"));
+  const q = query(collection(db, ADMINS_COL));
   const snapshot = await getDocs(q);
-  if (snapshot.empty) throw new Error("Admin data not found");
+  if (snapshot.empty) throw new Error("Data admin tidak ditemukan");
 
   const adminData = snapshot.docs[0].data();
-  const isValid = await bcrypt.compare(inputPassword, adminData.password);
-  return isValid;
+  return await bcrypt.compare(inputPassword, adminData.password);
 }
 
-// 3️⃣ Tambah operator dengan verifikasi admin
-export async function addOperatorWithAdminAuth(newOperator, adminPassword) {
+// Tambah operator
+export async function addOperator(username, password, role, adminPassword) {
   const isAdminValid = await verifyAdminPassword(adminPassword);
-  if (!isAdminValid) throw new Error("Invalid admin password");
+  if (!isAdminValid) throw new Error("Password admin salah");
 
-  const { username, password, role } = newOperator;
+  if (!username || !password || !role)
+    throw new Error("Data operator tidak lengkap");
 
-  if (!username || !password || !role) {
-    throw new Error("Missing operator data");
-  }
-
-  // Hash password operator sebelum simpan
   const hashedPassword = await bcrypt.hash(password, 10);
-
-  await addDoc(collection(db, "operators"), {
+  await addDoc(collection(db, OPERATORS_COL), {
     username,
     password: hashedPassword,
     role,
@@ -189,38 +152,68 @@ export async function addOperatorWithAdminAuth(newOperator, adminPassword) {
   return true;
 }
 
-// 4️⃣ Verifikasi operator login (nanti buat "Buka Toko")
+// Hapus operator
+export async function deleteOperator(id, adminPassword) {
+  const isAdminValid = await verifyAdminPassword(adminPassword);
+  if (!isAdminValid) throw new Error("Password admin salah");
+
+  await deleteDoc(doc(db, OPERATORS_COL, id));
+  return true;
+}
+
+// Verifikasi login operator (untuk fitur "Buka Toko")
 export async function verifyOperatorLogin(username, password) {
-  const q = query(collection(db, "operators"), where("username", "==", username));
+  const q = query(
+    collection(db, OPERATORS_COL),
+    where("username", "==", username)
+  );
   const snapshot = await getDocs(q);
-  if (snapshot.empty) throw new Error("Operator not found");
+  if (snapshot.empty) throw new Error("Operator tidak ditemukan");
 
   const operator = snapshot.docs[0].data();
   const isValid = await bcrypt.compare(password, operator.password);
+  if (!isValid) throw new Error("Password salah");
 
-  if (!isValid) throw new Error("Invalid password");
-
-  return {
-    id: snapshot.docs[0].id,
-    ...operator,
-  };
+  return { id: snapshot.docs[0].id, ...operator };
 }
 
+// Edit operator (verifikasi password admin)
+export async function updateOperator(id, updatedData, adminPassword) {
+  const isAdminValid = await verifyAdminPassword(adminPassword);
+  if (!isAdminValid) throw new Error("Password admin salah");
 
-// Akun
-// Ambil data admin
-export async function getAdminData() {
-  const adminRef = doc(db, "admins", "main_admin"); // misal pakai ID tetap
-  const snap = await getDoc(adminRef);
-  if (!snap.exists()) {
-    return null;
+  const { username, password, role } = updatedData;
+
+  const updatePayload = { username, role };
+
+  if (password) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    updatePayload.password = hashedPassword;
   }
+
+  await updateDoc(doc(db, "operators", id), updatePayload);
+  return true;
+}
+
+// ======================================================
+// 🔑 Admin Akun & Pengaturan
+// ======================================================
+
+export async function getAdminData() {
+  const adminRef = doc(db, ADMINS_COL, "main_admin");
+  const snap = await getDoc(adminRef);
+  if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() };
 }
 
-// Inisialisasi admin baru (kalau belum ada)
 export async function initAdminAccount(username, password) {
-  const adminRef = doc(db, "admins", "main_admin");
+  const adminRef = doc(db, ADMINS_COL, "main_admin");
+  const snap = await getDoc(adminRef);
+
+  if (snap.exists()) {
+    throw new Error("Akun admin sudah ada");
+  }
+
   const hashed = await bcrypt.hash(password, 10);
   await setDoc(adminRef, {
     username,
@@ -230,11 +223,10 @@ export async function initAdminAccount(username, password) {
   return true;
 }
 
-// Ubah password admin (dengan verifikasi password lama)
 export async function changeAdminPassword(oldPass, newPass) {
-  const adminRef = doc(db, "admins", "main_admin");
+  const adminRef = doc(db, ADMINS_COL, "main_admin");
   const snap = await getDoc(adminRef);
-  if (!snap.exists()) throw new Error("Admin data not found");
+  if (!snap.exists()) throw new Error("Admin data tidak ditemukan");
 
   const admin = snap.data();
   const isValid = await bcrypt.compare(oldPass, admin.password);
@@ -244,3 +236,5 @@ export async function changeAdminPassword(oldPass, newPass) {
   await updateDoc(adminRef, { password: hashedNew });
   return true;
 }
+
+
