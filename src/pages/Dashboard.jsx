@@ -62,10 +62,10 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <div className="p-8">
+      <div className="p-8 flex flex-col gap-4">
         <h2 className="text-2xl font-semibold mb-6 text-gray-800">Dashboard</h2>
 
-        <div className="p-6 flex flex-col gap-6">
+        <div>
           <StoreWidget onEnterCashier={() => navigate("/kasir")} />
           {/* widget lain seperti laporan, inventori, dll */}
         </div>
@@ -89,7 +89,14 @@ export default function Dashboard() {
           {activeSession ? (
             <>
               <button
-                onClick={() => navigate("/kasir")}
+                onClick={async () => {
+                  const session = await getActiveStoreSession();
+                  if (session) {
+                    navigate("/kasir");
+                  } else {
+                    setMsg({ type: "error", text: "Toko belum dibuka!" });
+                  }
+                }}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
               >
                 Masuk Mode Kasir ({activeSession.operatorName})
