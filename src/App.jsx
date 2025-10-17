@@ -8,7 +8,9 @@ import EditBarang from "./pages/EditBarang";
 import BarcodePrint from "./pages/BarcodePrint";
 import Kasir from "./pages/Kasir";
 import Receipt from "./components/Receipt";
-import Laporan from "./pages/LaporanPenjualan"
+import Laporan from "./pages/LaporanPenjualan";
+import Operator from "./pages/Operator";
+import Akun from "./pages/PengaturanAkun";
 
 export default function App() {
   return (
@@ -24,6 +26,9 @@ export default function App() {
         <Route path="/kasir" element={<Kasir />} />
         <Route path="/receipt" element={<Receipt />} />
         <Route path="/laporan" element={<Laporan />} />
+        <Route path="/operator" element={<Operator />} />
+        <Route path="/akun" element={<Akun />} />
+        
       </Routes>
     </Router>
   );

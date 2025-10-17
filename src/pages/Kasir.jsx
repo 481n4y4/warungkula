@@ -1,5 +1,5 @@
 // src/pages/Kasir.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import QrReader from "react-qr-reader-es6";
 import {
   getProductByBarcode,
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { getActiveStoreSession } from "../firebase/firebase";
 
 function formatCurrency(num = 0) {
   return new Intl.NumberFormat("id-ID").format(num);
@@ -28,11 +29,21 @@ export default function Kasir() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [isScannerOpen, setScannerOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(""); 
-
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getActiveStoreSession();
+      if (!session) {
+        toast.error("❌ Toko belum dibuka. Kembali ke Dashboard.");
+        navigate("/dashboard");
+      }
+    };
+    checkSession();
+  }, [navigate]);
 
   // FUNGSI UTAMA UNTUK PENCARIAN PRODUK (manual + scan)
   const performSearch = async (term) => {
