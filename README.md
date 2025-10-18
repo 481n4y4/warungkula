@@ -1,117 +1,89 @@
-# 🏆 WarungKula – Sistem Kasir & Inventori Online untuk UMKM
-***
+# WarungKula - Point of Sale Application
 
-## 🎯 Masalah yang Diselesaikan
+A modern and responsive Point of Sale (POS) web application built with React.js and Vite, designed for small to medium businesses.
 
-* Pencatatan pemasukan/pengeluaran toko masih manual → rawan hilang & tidak rapi.
-* Inventori/restock barang masih pakai catatan → bikin ribet & bisa salah hitung.
-* Kasir butuh alat yang lebih praktis → scanning barcode bikin transaksi lebih cepat.
+## 🚀 Features
 
-***
+- **Inventory Management** - Track and manage product inventory
+- **Sales Transactions** - Process customer orders and payments
+- **Real-time Dashboard** - Monitor sales performance and analytics
+- **Responsive Design** - Works seamlessly on desktop and mobile devices
+- **Fast Performance** - Built with Vite for optimal development experience
 
-## 💡 Solusi Aplikasi
+## 🛠 Tech Stack
 
-Website yang berfungsi sebagai **kasir digital + manajemen inventori online**, dengan fitur:
+- **Frontend**: React.js, Vite
+- **Styling**: CSS3 / Tailwind CSS (if applicable)
+- **Build Tool**: Vite 7.1.0
+- **Package Manager**: npm
 
-### 1. Pencatatan Transaksi Otomatis
+## 📦 Installation
 
-* Input penjualan & pembelian barang.
-* Laporan pemasukan & pengeluaran otomatis (harian, mingguan, bulanan).
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/481n4y4/warungkula.git
+   cd warungkula
+   ```
 
-### 2. Barcode Scanner
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-* Scan produk pakai **kamera HP/laptop** (tanpa mesin kasir mahal).
-* Bisa *generate* barcode otomatis untuk produk baru.
+3. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-### 3. Inventori Online
+4. **Build for production**
+   ```bash
+   npm run build
+   ```
 
-* Catat stok barang masuk/keluar.
-* Notifikasi jika stok menipis.
-* Laporan restock barang langsung dari *web*.
-
-### 4. Dashboard Analitik Sederhana
-
-* Grafik penjualan.
-* Produk terlaris.
-* Total profit per periode.
-
-***
-
-## 🔧 Teknologi yang Bisa Dipakai
-
-* **Frontend**: React.js (untuk *web* interaktif) atau Vue.js.
-* **Backend**: Firebase (biar cepat, tanpa *server* ribet).
-* **Database**: Firestore (real-time).
-* **Barcode**:
-    * *Library* JS seperti **QuaggaJS** atau **JsBarcode**.
-    * Bisa *scan* pakai kamera HP/laptop.
-
-***
-
-## 📱 Alur Pengguna
-
-1.  Login → masuk ke *dashboard*.
-2.  Tambah produk baru → otomatis dibuatkan barcode.
-3.  Kasir *scan* barcode produk → transaksi tercatat otomatis.
-4.  Laporan keuangan & stok barang bisa dilihat di *dashboard*.
-5.  Saat stok menipis → *user* dapat notifikasi restock.
-
-***
-
-## 🎨 Mockup Tampilan (gambaran)
-
-* **Dashboard**: grafik penjualan + ringkasan pemasukan/pengeluaran.
-* **Halaman Kasir**: *form* input + kamera untuk *scan* barcode.
-* **Halaman Inventori**: daftar produk, jumlah stok, tombol “Restock”.
-* **Halaman Laporan**: tabel transaksi, filter tanggal.
-
-***
-## Struktur Proyek WARUNGKULA
-
-Proyek ini memiliki struktur direktori yang terorganisir untuk memisahkan aset, komponen, halaman, dan layanan.
+## 🏗 Project Structure
 
 ```
-
-WARUNGKULA/
-├── public/                  
-├── src/                     
-│   ├── assets/              
-│   │   ├── css/             
-│   │   │     └── index.css  
-│   │   └── img/             
-│   │        └── WarungKula.png
-│   ├── components/          
-│   │   ├── Navbar.jsx
-│   │   └── Receipt.jsx
-│   ├── firebase/            
-│   │   └── firebase.js      
-│   ├── pages/               
-│   │   ├── BarcodePrint.jsx   
-│   │   ├── Dashboard.jsx     
-│   │   ├── EditBarang.jsx    
-│   │   ├── Inventori.jsx     
-│   │   ├── Kasir.jsx         
-│   │   ├── Login.jsx        
-│   │   ├── Register.jsx  
-│   │   ├── LaporanPenjualan.jsx
-│   │   └── TambahBarang.jsx  
-│   ├── services/             
-│   │   └── inventoriService.js  
-│   ├── App.jsx               
-│   └── main.jsx              
-├── .gitignore                
-├── eslint.config.js          
-├── index.html               
-├── package.json              
-├── README.md                 
-└── vite.config.js           
-
+warungkula/
+├── src/
+│   ├── pages/           # React page components
+│   │   └── inventori.jsx
+│   ├── services/        # Business logic and API services
+│   │   └── inventorsService.js
+│   ├── components/      # Reusable UI components
+│   └── assets/          # Static files (images, icons)
+├── public/              # Public assets
+└── package.json         # Project dependencies and scripts
 ```
-***
 
-## Penjelasan Singkat Direktori Kunci
+## 📝 Available Scripts
 
-* **`src/pages/`**: Menyimpan komponen utama yang bertindak sebagai halaman yang memiliki rute dalam aplikasi.
-* **`src/components/`**: Berisi komponen UI yang lebih kecil dan dapat digunakan kembali (misalnya: tombol, kartu, modal).
-* **`src/services/`**: Tempat untuk logika bisnis dan fungsi yang berinteraksi dengan data atau API, memisahkannya dari komponen UI.
-* **`src/assets/`**: Digunakan untuk menyimpan aset statis seperti gambar, ikon, dan gaya khusus.
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm fund` - View funding information for dependencies
+
+## 🐛 Known Issues
+
+- File path resolution issues in build process (see Troubleshooting section)
+- Ensure all service files are properly linked in components
+
+## 🤝 Contributing
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+
+## 👤 Author
+
+**481n4y4**
+- GitHub: [@481n4y4](https://github.com/481n4y4)
+
+## 🙏 Acknowledgments
+
+- Vite team for the excellent build tool
+- React community for continuous improvements
+- Contributors and testers
+
