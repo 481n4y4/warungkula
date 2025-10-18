@@ -273,6 +273,7 @@ export async function openStoreSession(username, password, cashStart) {
 export async function closeStoreSession(adminPassword) {
   // ambil session aktif
   const active = await getActiveStoreSession();
+
   if (!active) {
     throw new Error("Tidak ada toko yang sedang dibuka");
   }
@@ -307,4 +308,27 @@ export async function getActiveStoreSession() {
 
   const docSnap = snapshot.docs[0];
   return { id: docSnap.id, ...docSnap.data() };
+}
+
+// ======================================================
+// Statistik Dashboard
+// ======================================================
+export async function getDashboardStats() {
+  const transaksiRef = collection(db, "transaksi");
+  const snapshot = await getDocs(transaksiRef);
+
+  let totalPemasukan = 0;
+  let totalTransaksi = 0;
+  let totalProduk = 0;
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    totalPemasukan += data.totalPrice || data.total || 0;
+    totalTransaksi++;
+    if (Array.isArray(data.items)) {
+      data.items.forEach((item) => (totalProduk += item.qty || 0));
+    }
+  });
+
+  return { totalPemasukan, totalTransaksi, totalProduk };
 }
