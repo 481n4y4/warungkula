@@ -14,8 +14,9 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { getActiveStoreSession } from "../firebase/firebase";
-import StoreStatusWidget from "../components/StoreWidget";
+// import StoreStatusWidget from "../components/StoreWidget";
 import Sidebar from "../components/Sidebar";
+import Popup from "../components/Popup";
 
 function formatCurrency(num = 0) {
   return new Intl.NumberFormat("id-ID").format(num);
@@ -32,6 +33,7 @@ export default function Kasir() {
   const navigate = useNavigate();
   const [isScannerOpen, setScannerOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [activeSession, setActiveSession] = useState(null);
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
@@ -40,15 +42,16 @@ export default function Kasir() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const session = await getActiveStoreSession();
-      if (!session) {
-        toast.error("❌ Toko belum dibuka. Kembali ke Dashboard.");
-        navigate("/dashboard");
-      }
-    };
-    checkSession();
-  }, [navigate]);
+  const checkSession = async () => {
+    const session = await getActiveStoreSession();
+    setActiveSession(session);
+
+    if (!session) {
+      navigate("/dashboard", { state: { storeClosed: true } });
+    }
+  };
+  checkSession();
+}, [navigate]);
 
   // FUNGSI UTAMA UNTUK PENCARIAN PRODUK (manual + scan)
   const performSearch = async (term) => {
@@ -219,7 +222,6 @@ export default function Kasir() {
         </nav>
 
         <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-          <ToastContainer position="top-right" autoClose={2500} />
           {/* Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: Scanner + Search */}

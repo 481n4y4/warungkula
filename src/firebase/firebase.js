@@ -273,6 +273,7 @@ export async function openStoreSession(username, password, cashStart) {
 export async function closeStoreSession(adminPassword) {
   // ambil session aktif
   const active = await getActiveStoreSession();
+
   if (!active) {
     throw new Error("Tidak ada toko yang sedang dibuka");
   }
@@ -308,7 +309,6 @@ export async function getActiveStoreSession() {
   const docSnap = snapshot.docs[0];
   return { id: docSnap.id, ...docSnap.data() };
 }
-
 
 // ======================================================
 // Statistik Dashboard

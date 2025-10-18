@@ -7,14 +7,17 @@ import {
   faChartLine,
   faBoxes,
   faUsers,
+  faHome,
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate, useLocation } from "react-router-dom";
+import warungkula from "../assets/img/logo.png";
 
 export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const navItems = [
+    { path: "/dashboard", icon: faHome, label: "Dashboard" },
     { path: "/akun", icon: faUser, label: "Akun" },
     { path: "/kasir", icon: faCashRegister, label: "Kasir" },
     { path: "/laporan", icon: faChartLine, label: "Laporan" },
@@ -39,9 +42,11 @@ export default function Sidebar({ isOpen, onClose }) {
           ${isOpen ? "translate-x-0" : "-translate-x-full"} 
           md:translate-x-0 w-20 md:w-24 flex flex-col items-center py-6`}
       >
-        <h2 className="text-2xl font-bold mb-10 text-green-800 hidden md:block">
-          🌿
-        </h2>
+        <img
+          src={warungkula}
+          alt="logo"
+          className="w-10 h-10 object-contain mb-4"
+        />
         <nav className="flex flex-col gap-8">
           {navItems.map((item) => (
             <button
