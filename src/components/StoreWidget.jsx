@@ -5,6 +5,7 @@ import {
   closeStoreSession,
   getAllOperators,
   auth,
+  waitForUser, // ✅ tambahkan ini
 } from "../firebase/firebase";
 
 export default function StoreStatusWidget({ onEnterCashier }) {
@@ -22,20 +23,27 @@ export default function StoreStatusWidget({ onEnterCashier }) {
 
   const userEmail = auth.currentUser?.email || "User";
 
-  // 🔹 Load sesi toko aktif
+  // ✅ Pastikan user login dulu sebelum load data
   useEffect(() => {
-    async function fetchSession() {
-      const session = await getActiveStoreSession();
-      setActiveSession(session);
-      setLoading(false);
+    async function init() {
+      try {
+        await waitForUser(); // tunggu user login
+        const session = await getActiveStoreSession();
+        setActiveSession(session);
+      } catch (err) {
+        console.error("Gagal memuat sesi toko:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    fetchSession();
+    init();
   }, []);
 
-  // 🔹 Load data operator
+  // ✅ Load data operator setelah login juga
   useEffect(() => {
     async function fetchOperators() {
       try {
+        await waitForUser(); // pastikan user sudah login
         const ops = await getAllOperators();
         setOperators(ops);
       } catch (err) {
@@ -108,9 +116,7 @@ export default function StoreStatusWidget({ onEnterCashier }) {
             <p className="text-sm opacity-90">
               Dibuka pada:{" "}
               {activeSession.openedAt?.seconds
-                ? new Date(
-                    activeSession.openedAt.seconds * 1000
-                  ).toLocaleString()
+                ? new Date(activeSession.openedAt.seconds * 1000).toLocaleString()
                 : "-"}
             </p>
             <button

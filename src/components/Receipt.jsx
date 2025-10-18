@@ -1,7 +1,7 @@
+//src/components/Receipt.jsx
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { getTransactionById } from "../firebase/firebase";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -15,8 +15,8 @@ export default function Receipt() {
   useEffect(() => {
     const fetchData = async () => {
       if (!state?.id) return;
-      const snap = await getDoc(doc(db, "transaksi", state.id));
-      if (snap.exists()) setData(snap.data());
+      const data = await getTransactionById(state.id);
+      setData(data);
     };
     fetchData();
   }, [state]);

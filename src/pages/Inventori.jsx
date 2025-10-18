@@ -1,3 +1,4 @@
+// src/pages/Inventori.jsx
 import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -7,7 +8,7 @@ import {
   faTrash,
   faPrint,
 } from "@fortawesome/free-solid-svg-icons";
-import { getItems, deleteItem } from "../services/inventoriService";
+import { getItems, deleteItem } from "../services/InventoriService.js";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 
@@ -48,7 +49,6 @@ export default function Inventori() {
         </nav>
 
         <div className="p-4 sm:p-6 min-h-screen">
-          {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6">
             <button
               onClick={() => navigate("/tambah-barang")}
@@ -58,7 +58,6 @@ export default function Inventori() {
             </button>
           </div>
 
-          {/* Daftar Barang */}
           <ul className="space-y-4">
             {items.map((item) => (
               <li
@@ -83,12 +82,8 @@ export default function Inventori() {
                           <thead className="bg-green-50">
                             <tr>
                               <th className="border p-1 text-left">Satuan</th>
-                              <th className="border p-1 text-left">
-                                Harga Beli
-                              </th>
-                              <th className="border p-1 text-left">
-                                Harga Jual
-                              </th>
+                              <th className="border p-1 text-left">Harga Beli</th>
+                              <th className="border p-1 text-left">Harga Jual</th>
                               <th className="border p-1 text-left">Stok</th>
                             </tr>
                           </thead>
@@ -116,7 +111,6 @@ export default function Inventori() {
                   )}
                 </div>
 
-                {/* Tombol aksi */}
                 <div className="flex flex-col sm:flex-row sm:justify-end gap-2 mt-4">
                   <button
                     onClick={() => navigate(`/edit-barang/${item.id}`)}

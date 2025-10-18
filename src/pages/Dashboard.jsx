@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { getDashboardStats, getActiveStoreSession } from "../firebase/firebase";
+import {
+  getDashboardStats,
+  getActiveStoreSession,
+  waitForUser,
+} from "../firebase/firebase";
 import StoreStatusWidget from "../components/StoreWidget";
 import Sidebar from "../components/Sidebar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -22,8 +26,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchStats() {
-      const data = await getDashboardStats();
-      setStats(data);
+      try {
+        // ✅ Pastikan user sudah login sebelum akses data
+        await waitForUser();
+
+        const data = await getDashboardStats();
+        setStats(data);
+      } catch (err) {
+        console.error("❌ Gagal memuat statistik:", err);
+        setPopupMessage("Gagal memuat data. Pastikan Anda sudah login.");
+        setShowPopup(true);
+      }
     }
     fetchStats();
   }, []);
@@ -41,22 +54,23 @@ export default function Dashboard() {
     console.log("🎯 handleEnterCashier dipanggil!");
 
     try {
+      // ✅ Tunggu user login dulu sebelum ambil session
+      await waitForUser();
+
       console.log("🔍 Mengecek active session...");
       const activeSession = await getActiveStoreSession();
       console.log("✅ Active session result:", activeSession);
 
       if (!activeSession) {
         console.log("🚫 No active session, harusnya show popup");
-
         setPopupMessage(
           "⚠️ Toko harus dibuka terlebih dahulu sebelum masuk ke kasir!"
         );
         setShowPopup(true);
-
-        // Cek state segera setelah setState
         console.log("📢 setShowPopup(true) telah dipanggil");
         return;
       }
+
       console.log("✅ Ada active session, redirect ke kasir");
       window.location.href = "/kasir";
     } catch (err) {
@@ -82,13 +96,13 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
         </nav>
 
-        <div className="flex flex-col gap-4 p-6 md:p-10 ">
+        <div className="flex flex-col gap-4 p-6 md:p-10">
           <div>
             <StoreStatusWidget onEnterCashier={handleEnterCashier} />
           </div>
 
           {/* Statistik Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-white rounded-xl p-6 shadow text-center border-l-4 border-green-500">
               <h3 className="text-gray-500">Total Pemasukan</h3>
               <p className="text-3xl font-bold text-green-600">
@@ -110,6 +124,7 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
       {showPopup && (
         <Popup
           title="Peringatan"

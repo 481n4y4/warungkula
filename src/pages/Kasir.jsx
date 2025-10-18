@@ -5,18 +5,15 @@ import {
   getProductByBarcode,
   searchProductsByName,
   createTransactionWithStockUpdate,
-  db,
+  getActiveStoreSession,
 } from "../firebase/firebase";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { getActiveStoreSession } from "../firebase/firebase";
-// import StoreStatusWidget from "../components/StoreWidget";
+import { serverTimestamp } from "firebase/firestore";
 import Sidebar from "../components/Sidebar";
-import Popup from "../components/Popup";
 
 function formatCurrency(num = 0) {
   return new Intl.NumberFormat("id-ID").format(num);
@@ -30,30 +27,28 @@ export default function Kasir() {
   const [payment, setPayment] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const [isScannerOpen, setScannerOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [activeSession, setActiveSession] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isScannerOpen, setScannerOpen] = useState(false);
+  const navigate = useNavigate();
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
 
-  //SideBar
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
+  // ✅ Cek apakah sesi toko aktif
   useEffect(() => {
-  const checkSession = async () => {
-    const session = await getActiveStoreSession();
-    setActiveSession(session);
+    const checkSession = async () => {
+      const session = await getActiveStoreSession();
+      setActiveSession(session);
+      if (!session) {
+        navigate("/dashboard", { state: { storeClosed: true } });
+      }
+    };
+    checkSession();
+  }, [navigate]);
 
-    if (!session) {
-      navigate("/dashboard", { state: { storeClosed: true } });
-    }
-  };
-  checkSession();
-}, [navigate]);
-
-  // FUNGSI UTAMA UNTUK PENCARIAN PRODUK (manual + scan)
+  // ✅ Fungsi pencarian produk (bisa dari scan atau ketik manual)
   const performSearch = async (term) => {
     if (!term?.trim()) return;
     setLoading(true);
@@ -62,11 +57,11 @@ export default function Kasir() {
       let results = [];
 
       if (/^\d+$/.test(term) || term.startsWith("BR")) {
-        // Cari berdasarkan barcode
+        // cari berdasarkan barcode
         const product = await getProductByBarcode(term);
         if (product) results = [product];
       } else {
-        // Cari berdasarkan nama produk
+        // cari berdasarkan nama
         results = await searchProductsByName(term);
       }
 
@@ -75,7 +70,6 @@ export default function Kasir() {
       if (results.length === 0) {
         toast.info("Produk tidak ditemukan.");
       } else if (results.length === 1 && results[0].units?.length === 1) {
-        // Jika hasil hanya 1 dan 1 satuan → langsung masukkan ke keranjang
         const product = results[0];
         const unit = product.units[0];
         addToCart(product, unit, 1);
@@ -91,18 +85,17 @@ export default function Kasir() {
     }
   };
 
-  // HANDLE SEARCH (manual)
+  // ✅ Handle input pencarian manual
   const handleSearch = async (e) => {
     e.preventDefault();
     performSearch(searchTerm);
   };
 
-  // HANDLE SCAN (QR Code)
+  // ✅ Handle hasil scan barcode
   const handleScan = async (result) => {
     if (result && result !== lastScanned) {
-      console.log("QR Code:", result);
       setLastScanned(result);
-      performSearch(result); // panggil fungsi yang sama
+      performSearch(result);
     }
   };
 
@@ -111,10 +104,11 @@ export default function Kasir() {
     toast.error("Gagal membaca QR Code!");
   };
 
-  // CART HELPERS
+  // ✅ Tambah ke keranjang
   const addToCart = (product, unitObj, qty = 1) => {
     if (!product || !unitObj) return;
     const key = `${product.id}|${unitObj.unit}`;
+
     setCart((prev) => {
       const exists = prev.find((p) => p.key === key);
       if (exists) {
@@ -140,6 +134,7 @@ export default function Kasir() {
     });
   };
 
+  // ✅ Ubah qty item
   const updateQty = (key, newQty) => {
     setCart((prev) =>
       prev
@@ -152,10 +147,11 @@ export default function Kasir() {
     );
   };
 
+  // ✅ Hapus item dari keranjang
   const removeItem = (key) =>
     setCart((prev) => prev.filter((it) => it.key !== key));
 
-  // ===== CHECKOUT =====
+  // ✅ Checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return toast.warn("Keranjang masih kosong!");
     const paid = Number(payment);
@@ -178,23 +174,23 @@ export default function Kasir() {
       change: paid - total,
       paymentMethod,
       note,
+      storeSessionId: activeSession?.id || null,
       createdAt: serverTimestamp(),
     };
 
     setLoading(true);
     try {
-      // 1️⃣ Simpan transaksi ke Firestore
-      const docRef = await addDoc(collection(db, "transaksi"), txPayload);
+      // simpan transaksi ke firestore
+      const docRef = await createTransactionWithStockUpdate(txPayload);
+      console.log("Transaksi berhasil:", docRef.id);
 
-      // 2️⃣ Kurangi stok lewat function existing (kalau kamu pakai)
+      // kurangi stok
       await createTransactionWithStockUpdate(txPayload);
 
-      // 3️⃣ Bersihkan keranjang
       setCart([]);
       setPayment("");
       setNote("");
 
-      // 4️⃣ Arahkan ke halaman struk dengan membawa ID transaksi
       navigate("/receipt", { state: { id: docRef.id } });
     } catch (error) {
       console.error(error);
@@ -204,12 +200,12 @@ export default function Kasir() {
     }
   };
 
-  // ====================== UI ===========================
+  // ✅ Tampilan
   return (
     <section className="flex min-h-screen">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <main className="flex flex-9 flex-col">
+      <main className="flex-1 flex-col">
         <nav className="flex items-center gap-3 bg-white shadow-md px-6 py-4">
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -217,20 +213,15 @@ export default function Kasir() {
           >
             <FontAwesomeIcon icon={faBars} />
           </button>
-
           <h1 className="text-xl font-bold text-gray-800">Mode Kasir</h1>
         </nav>
 
         <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-          {/* Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left: Scanner + Search */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-              <h2 className="font-semibold text-lg flex items-center gap-2">
-                Pemindai Barcode
-              </h2>
+            {/* ========== SCANNER DAN CARI PRODUK ========== */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border space-y-4">
+              <h2 className="font-semibold text-lg">Pemindai Barcode</h2>
 
-              {/* Tombol untuk membuka scanner */}
               <button
                 onClick={() => setScannerOpen(true)}
                 className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow transition"
@@ -247,7 +238,7 @@ export default function Kasir() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="🔎 Cari nama produk atau barcode lalu tekan Enter"
-                  className="w-full p-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </form>
 
@@ -281,7 +272,7 @@ export default function Kasir() {
                 ))}
               </div>
 
-              {/* ===== Modal Scanner ===== */}
+              {/* Modal Scanner */}
               {isScannerOpen && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
                   <div className="bg-white p-5 rounded-2xl shadow-lg w-[90%] max-w-md relative">
@@ -315,8 +306,8 @@ export default function Kasir() {
               )}
             </div>
 
-            {/* Right: Cart */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            {/* ========== KERANJANG ========== */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border flex flex-col">
               <h2 className="font-semibold text-lg mb-3">Keranjang</h2>
 
               <div className="overflow-x-auto mb-3">
@@ -388,7 +379,7 @@ export default function Kasir() {
                 </table>
               </div>
 
-              {/* Summary */}
+              {/* RINGKASAN PEMBAYARAN */}
               <div className="w-full p-4 border rounded-2xl bg-gray-50 mt-auto space-y-3">
                 <div className="flex justify-between text-sm text-gray-700">
                   <span>Subtotal</span>
@@ -468,6 +459,8 @@ export default function Kasir() {
             </div>
           </div>
         </div>
+
+        <ToastContainer />
       </main>
     </section>
   );

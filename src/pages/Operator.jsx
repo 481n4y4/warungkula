@@ -1,4 +1,3 @@
-// src/pages/Operator.jsx
 import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -8,38 +7,50 @@ import {
   faEdit,
   faSearch,
 } from "@fortawesome/free-solid-svg-icons";
+import Sidebar from "../components/Sidebar";
 import {
   getAllOperators,
   addOperator,
-  deleteOperator,
   updateOperator,
+  deleteOperator,
 } from "../firebase/firebase";
-import Sidebar from "../components/Sidebar";
+import { auth } from "../firebase/firebase";
 
 export default function Operator() {
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [msg, setMsg] = useState({ type: "", text: "" });
+
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Form data
   const [form, setForm] = useState({
     username: "",
     password: "",
     role: "Kasir",
     adminPassword: "",
   });
-  const [msg, setMsg] = useState({ type: "", text: "" });
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState({
+
+  const [editForm, setEditForm] = useState({
     id: "",
     username: "",
     password: "",
     role: "",
     adminPassword: "",
   });
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // ===========================================================
+  // 🔹 Fetch Data
+  // ===========================================================
   useEffect(() => {
-    fetchOperators();
+    const unsub = auth.onAuthStateChanged((user) => {
+      if (user) fetchOperators();
+    });
+    return () => unsub();
   }, []);
 
   const fetchOperators = async () => {
@@ -49,20 +60,22 @@ export default function Operator() {
       setOperators(data);
     } catch (err) {
       console.error(err);
-      setMsg({ type: "error", text: "Gagal memuat data operator" });
+      setMsg({ type: "error", text: "Gagal memuat data operator." });
     } finally {
       setLoading(false);
     }
   };
 
+  // ===========================================================
+  // 🔹 Filter pencarian
+  // ===========================================================
   const filteredOperators = operators.filter((op) =>
     op.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
+  // ===========================================================
+  // 🔹 Tambah Operator
+  // ===========================================================
   const handleAdd = async (e) => {
     e.preventDefault();
     setMsg({ type: "", text: "" });
@@ -75,51 +88,60 @@ export default function Operator() {
       );
       setMsg({ type: "success", text: "Operator berhasil ditambahkan!" });
       setForm({ username: "", password: "", role: "Kasir", adminPassword: "" });
-      setShowModal(false);
-      await fetchOperators();
+      setShowAddModal(false);
+      fetchOperators();
     } catch (err) {
       setMsg({ type: "error", text: err.message });
     }
   };
 
+  // ===========================================================
+  // 🔹 Edit Operator
+  // ===========================================================
   const handleEdit = async (e) => {
     e.preventDefault();
     setMsg({ type: "", text: "" });
     try {
       await updateOperator(
-        editData.id,
+        editForm.id,
         {
-          username: editData.username,
-          password: editData.password,
-          role: editData.role,
+          username: editForm.username,
+          password: editForm.password,
+          role: editForm.role,
         },
-        editData.adminPassword
+        editForm.adminPassword
       );
-      setMsg({ type: "success", text: "Data operator berhasil diubah!" });
+      setMsg({ type: "success", text: "Data operator berhasil diperbarui!" });
       setShowEditModal(false);
-      await fetchOperators();
+      fetchOperators();
     } catch (err) {
       setMsg({ type: "error", text: err.message });
     }
   };
 
+  // ===========================================================
+  // 🔹 Hapus Operator
+  // ===========================================================
   const handleDelete = async (id) => {
     const adminPassword = prompt("Masukkan password admin untuk konfirmasi:");
     if (!adminPassword) return;
-
     try {
       await deleteOperator(id, adminPassword);
-      await fetchOperators();
+      fetchOperators();
     } catch (err) {
       alert("Gagal menghapus operator: " + err.message);
     }
   };
 
+  // ===========================================================
+  // 🔹 UI Render
+  // ===========================================================
   return (
     <section className="flex min-h-screen">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      <main className="flex flex-9 flex-col">
+      <main className="flex-1 flex flex-col">
+        {/* Navbar */}
         <nav className="flex items-center gap-3 bg-white shadow-md px-6 py-4">
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -127,132 +149,128 @@ export default function Operator() {
           >
             <FontAwesomeIcon icon={faBars} />
           </button>
-
-          <h1 className="text-xl font-bold text-gray-800">Operator</h1>
+          <h1 className="text-xl font-bold text-gray-800">Kelola Operator</h1>
         </nav>
 
-        <div>
-          {/* Konten utama */}
-          <div className="p-4 max-w-5xl mx-auto">
-            {/* Search Bar */}
-            <div className="flex justify-between mb-4">
-              <div className="relative w-full sm:w-2/3 md:w-1/2">
-                <FontAwesomeIcon
-                  icon={faSearch}
-                  className="absolute left-3 top-3 text-gray-400"
-                />
-                <input
-                  type="text"
-                  placeholder="Cari operator..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-blue-500"
-                />
-              </div>
-              <button
-                onClick={() => setShowModal(true)}
-                className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
-              >
-                <FontAwesomeIcon icon={faPlus} /> Tambah
-              </button>
+        {/* Konten */}
+        <div className="p-4 max-w-5xl mx-auto w-full">
+          {/* Search & Add */}
+          <div className="flex justify-between mb-4">
+            <div className="relative w-full sm:w-2/3 md:w-1/2">
+              <FontAwesomeIcon
+                icon={faSearch}
+                className="absolute left-3 top-3 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Cari operator..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-blue-500"
+              />
             </div>
-
-            {/* Tabel data */}
-            {loading ? (
-              <p className="text-center text-gray-500">Memuat data...</p>
-            ) : filteredOperators.length === 0 ? (
-              <p className="text-center text-gray-500">
-                {search ? "Operator tidak ditemukan." : "Belum ada operator."}
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full rounded-lg mt-4 text-center border border-gray-200">
-                  <thead className="bg-gray-200">
-                    <tr>
-                      <th className="p-2">No</th>
-                      <th className="p-2">Username</th>
-                      <th className="p-2">Role</th>
-                      <th className="p-2">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredOperators.map((op, i) => (
-                      <tr
-                        key={op.id}
-                        className="bg-gray-50 hover:bg-gray-100 border-b"
-                      >
-                        <td className="p-2">{i + 1}</td>
-                        <td className="p-2">{op.username}</td>
-                        <td className="p-2">{op.role}</td>
-                        <td className="p-2">
-                          <button
-                            onClick={() => {
-                              setEditData({
-                                id: op.id,
-                                username: op.username,
-                                password: "",
-                                role: op.role,
-                                adminPassword: "",
-                              });
-                              setShowEditModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 mr-3"
-                          >
-                            <FontAwesomeIcon icon={faEdit} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(op.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
+            >
+              <FontAwesomeIcon icon={faPlus} /> Tambah
+            </button>
           </div>
 
-          {/* Modal Tambah Operator */}
-          {showModal && (
-            <Modal
-              title="Tambah Operator Baru"
-              form={form}
-              setForm={setForm}
-              msg={msg}
-              onSubmit={handleAdd}
-              onClose={() => setShowModal(false)}
-              buttonLabel="Tambah Operator"
-            />
-          )}
-
-          {/* Modal Edit Operator */}
-          {showEditModal && (
-            <Modal
-              title="Edit Operator"
-              form={editData}
-              setForm={setEditData}
-              msg={msg}
-              onSubmit={handleEdit}
-              onClose={() => setShowEditModal(false)}
-              buttonLabel="Simpan Perubahan"
-              isEdit
-            />
+          {/* Tabel */}
+          {loading ? (
+            <p className="text-center text-gray-500">Memuat data...</p>
+          ) : filteredOperators.length === 0 ? (
+            <p className="text-center text-gray-500">
+              {search ? "Operator tidak ditemukan." : "Belum ada operator."}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full rounded-lg mt-4 text-center border border-gray-200">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="p-2">No</th>
+                    <th className="p-2">Username</th>
+                    <th className="p-2">Role</th>
+                    <th className="p-2">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOperators.map((op, i) => (
+                    <tr
+                      key={op.id}
+                      className="bg-gray-50 hover:bg-gray-100 border-b"
+                    >
+                      <td className="p-2">{i + 1}</td>
+                      <td className="p-2">{op.username}</td>
+                      <td className="p-2">{op.role}</td>
+                      <td className="p-2">
+                        <button
+                          onClick={() => {
+                            setEditForm({
+                              id: op.id,
+                              username: op.username,
+                              password: "",
+                              role: op.role,
+                              adminPassword: "",
+                            });
+                            setShowEditModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 mr-3"
+                        >
+                          <FontAwesomeIcon icon={faEdit} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(op.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
+
+        {/* Modal Tambah */}
+        {showAddModal && (
+          <Modal
+            title="Tambah Operator Baru"
+            form={form}
+            setForm={setForm}
+            onSubmit={handleAdd}
+            onClose={() => setShowAddModal(false)}
+            buttonLabel="Tambah Operator"
+          />
+        )}
+
+        {/* Modal Edit */}
+        {showEditModal && (
+          <Modal
+            title="Edit Data Operator"
+            form={editForm}
+            setForm={setEditForm}
+            onSubmit={handleEdit}
+            onClose={() => setShowEditModal(false)}
+            buttonLabel="Simpan Perubahan"
+            isEdit
+          />
+        )}
       </main>
     </section>
   );
 }
 
-/* 🔹 Reusable Modal Component */
+// ===========================================================
+// 🔹 Komponen Modal
+// ===========================================================
 function Modal({
   title,
   form,
   setForm,
-  msg,
   onSubmit,
   onClose,
   buttonLabel,
@@ -268,20 +286,21 @@ function Modal({
           ✕
         </button>
         <h2 className="text-xl font-bold text-center mb-4">{title}</h2>
+
         <form onSubmit={onSubmit} className="space-y-4">
+          {/* Username */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
-              Username
-            </label>
+            <label className="text-sm font-medium text-gray-700">Username</label>
             <input
               type="text"
-              name="username"
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
               required
               className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
             />
           </div>
+
+          {/* Password */}
           <div>
             <label className="text-sm font-medium text-gray-700">
               {isEdit
@@ -290,33 +309,35 @@ function Modal({
             </label>
             <input
               type="password"
-              name="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
               {...(!isEdit ? { required: true } : {})}
             />
           </div>
+
+          {/* Role */}
           <div>
             <label className="text-sm font-medium text-gray-700">Role</label>
             <select
-              name="role"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
               className="w-full border rounded-md p-2 mt-1"
             >
-              <option>Kasir</option>
-              <option>Manager</option>
+              <option value="Kasir">Kasir</option>
+              <option value="Manager">Manager</option>
             </select>
           </div>
+
           <hr />
+
+          {/* Password Admin */}
           <div>
             <label className="text-sm font-medium text-gray-700">
-              Password Admin (untuk konfirmasi)
+              Password Admin (konfirmasi)
             </label>
             <input
               type="password"
-              name="adminPassword"
               value={form.adminPassword}
               onChange={(e) =>
                 setForm({ ...form, adminPassword: e.target.value })
@@ -325,16 +346,6 @@ function Modal({
               className="w-full border rounded-md p-2 mt-1 focus:outline-blue-500"
             />
           </div>
-
-          {msg.text && (
-            <p
-              className={`text-center text-sm ${
-                msg.type === "error" ? "text-red-600" : "text-green-600"
-              }`}
-            >
-              {msg.text}
-            </p>
-          )}
 
           <button
             type="submit"

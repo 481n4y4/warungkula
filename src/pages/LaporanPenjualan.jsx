@@ -1,6 +1,5 @@
+// src/pages/LaporanPenjualan.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "../firebase/firebase";
 import { format, isSameDay } from "date-fns";
 import {
   LineChart,
@@ -11,13 +10,10 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import StoreStatusWidget from "../components/StoreWidget";
 import Sidebar from "../components/Sidebar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars } from "@fortawesome/free-solid-svg-icons";
-// import { faFilePdf } from "@fortawesome/free-solid-svg-icons";
-// import html2canvas from "html2canvas";
-// import jsPDF from "jspdf";
+import { getAllTransactions } from "../firebase/firebase"; // 🔹 gunakan fungsi yang sudah ada di firebase.js
 
 export default function LaporanPenjualan() {
   const [transaksi, setTransaksi] = useState([]);
@@ -28,20 +24,15 @@ export default function LaporanPenjualan() {
   const laporanRef = useRef();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // 🔹 Ambil data transaksi
+  // 🔹 Ambil data transaksi dari firebase.js
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const transaksiRef = collection(db, "transaksi");
-        const snapshot = await getDocs(
-          query(transaksiRef, orderBy("createdAt", "desc"))
-        );
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setTransaksi(data);
-        setFilteredData(data);
+        const data = await getAllTransactions(); // 🔹 ambil dari fungsi Firebase.js
+        if (Array.isArray(data)) {
+          setTransaksi(data);
+          setFilteredData(data);
+        }
       } catch (err) {
         console.error("Gagal mengambil data transaksi:", err);
       }
@@ -75,6 +66,7 @@ export default function LaporanPenjualan() {
     }, {})
   );
 
+  // 🔹 Lengkapi hari kosong agar tetap tampil di grafik
   for (let i = 0; i < 30; i++) {
     const date = new Date(thirtyDaysAgo);
     date.setDate(thirtyDaysAgo.getDate() + i);
@@ -94,6 +86,7 @@ export default function LaporanPenjualan() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 6);
   const last7Days = [];
+
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(now.getDate() - i);
@@ -113,6 +106,7 @@ export default function LaporanPenjualan() {
       jumlah: dayTx.length,
     });
   }
+
   const total7Hari = last7Days.reduce((acc, d) => acc + d.total, 0);
 
   // 🔹 Berdasarkan tanggal pilihan
@@ -135,92 +129,6 @@ export default function LaporanPenjualan() {
       minimumFractionDigits: 0,
     }).format(value);
 
-  // const exportPDF = async () => {
-  //   const element = laporanRef.current;
-  //   if (!element) return;
-
-  //   // 🔍 Cari SVG Recharts
-  //   const svg = element.querySelector("svg");
-  //   let svgImg = null;
-
-  //   if (svg) {
-  //     // Ambil ukuran SVG
-  //     const svgData = new XMLSerializer().serializeToString(svg);
-  //     const svgBlob = new Blob([svgData], {
-  //       type: "image/svg+xml;charset=utf-8",
-  //     });
-  //     const svgUrl = URL.createObjectURL(svgBlob);
-
-  //     // Buat image dari SVG
-  //     svgImg = document.createElement("img");
-  //     svgImg.src = svgUrl;
-  //     svgImg.style.width = svg.getBoundingClientRect().width + "px";
-  //     svgImg.style.height = svg.getBoundingClientRect().height + "px";
-  //     svgImg.style.display = "block";
-  //     svgImg.style.margin = "0 auto";
-  //   }
-
-  // 🔹 Clone tampilan laporan agar tetap mode desktop
-  //   const clone = element.cloneNode(true);
-  //   clone.style.width = "1024px";
-  //   clone.style.background = "white";
-  //   clone.style.padding = "24px";
-  //   clone.style.color = "black";
-  //   clone.style.position = "fixed";
-  //   clone.style.top = "0";
-  //   clone.style.left = "0";
-  //   clone.style.zIndex = "9999";
-  //   clone.style.visibility = "visible";
-  //   clone.style.opacity = "1";
-  //   clone.style.transform = "none";
-
-  //   // 🔄 Ganti SVG asli di clone dengan versi gambar
-  //   const svgInClone = clone.querySelector("svg");
-  //   if (svgInClone && svgImg) {
-  //     svgInClone.replaceWith(svgImg);
-  //   }
-
-  //   document.body.appendChild(clone);
-
-  //   try {
-  //     // 🔧 Tunggu render <img> selesai
-  //     await new Promise((res) => setTimeout(res, 800));
-
-  //     // 🔧 Perbaiki warna OKLCH (kadang error)
-  //     clone.querySelectorAll("*").forEach((el) => {
-  //       const style = window.getComputedStyle(el);
-  //       if (style.color.includes("oklch")) el.style.color = "#000000";
-  //       if (style.backgroundColor.includes("oklch"))
-  //         el.style.backgroundColor = "#ffffff";
-  //     });
-
-  //     // 📸 Render clone jadi canvas
-  //     const canvas = await html2canvas(clone, {
-  //       scale: 2,
-  //       backgroundColor: "#ffffff",
-  //       useCORS: true,
-  //       foreignObjectRendering: true,
-  //       windowWidth: 1280,
-  //       windowHeight: 800,
-  //     });
-
-  //     // 💾 Masukkan ke PDF
-  //     const imgData = canvas.toDataURL("image/png");
-  //     const pdf = new jsPDF("p", "mm", "a4");
-  //     const pdfWidth = pdf.internal.pageSize.getWidth();
-  //     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-  //     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-  //     pdf.save(
-  //       `laporan-penjualan-${new Date().toLocaleDateString("id-ID")}.pdf`
-  //     );
-  //   } catch (err) {
-  //     console.error("Gagal ekspor PDF:", err);
-  //   } finally {
-  //     document.body.removeChild(clone);
-  //   }
-  // };
-
   return (
     <section className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -233,30 +141,17 @@ export default function LaporanPenjualan() {
           >
             <FontAwesomeIcon icon={faBars} />
           </button>
-
-          <h1 className="text-xl font-bold text-gray-800">Laporan Penjualan</h1>
+          <h1 className="text-xl font-bold text-gray-800">
+            Laporan Penjualan
+          </h1>
         </nav>
 
-        {/* 📄 Konten */}
         <div ref={laporanRef} className="p-4 sm:p-6 space-y-6">
           {/* 📈 Grafik */}
-          <div className="bg-white p-4 rounded-lg shadow-md ">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
-              <h2 className="text-base sm:text-lg font-semibold">
-                Grafik Penjualan 30 Hari Terakhir
-              </h2>
-              {/* <button
-              onClick={exportPDF}
-              style={{
-                backgroundColor: "#ef4444", // ini warna rgb dari bg-red-500
-                color: "white",
-              }}
-              className="px-3 py-2 rounded-md hover:opacity-90 flex items-center justify-center text-center gap-2 text-sm sm:text-base"
-            >
-              <FontAwesomeIcon icon={faFilePdf} />
-              Ekspor PDF
-            </button> */}
-            </div>
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h2 className="text-base sm:text-lg font-semibold mb-3">
+              Grafik Penjualan 30 Hari Terakhir
+            </h2>
 
             <div className="w-full h-[250px] sm:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -336,12 +231,7 @@ export default function LaporanPenjualan() {
               <tbody>
                 {chosenDayData.length > 0 ? (
                   chosenDayData.map((tx) => {
-                    const paymentLabels = [
-                      "Tunai",
-                      "QRIS",
-                      "Transfer",
-                      "Debit",
-                    ];
+                    const paymentLabels = ["Tunai", "QRIS", "Transfer", "Debit"];
                     const paymentMethod = isNaN(tx.paymentMethod)
                       ? tx.paymentMethod
                       : paymentLabels[tx.paymentMethod] || "Tidak Diketahui";
