@@ -77,7 +77,7 @@ export default function StoreStatusWidget({ onEnterCashier }) {
 
   if (loading) {
     return (
-      <div className="p-4 rounded-xl shadow text-white bg-gradient-to-r from-[#1CB5E0] to-[#000851]">
+      <div className="p-4 rounded-xl shadow text-white bg-gradient-to-r from-green-300 via-green-500 to-green-600">
         Memuat...
       </div>
     );
@@ -86,7 +86,7 @@ export default function StoreStatusWidget({ onEnterCashier }) {
   return (
     <>
       {/* 🔹 Widget status toko */}
-      <div className="bg-gradient-to-r from-[#1CB5E0] to-[#000851] shadow-md rounded-xl p-6 flex flex-col gap-3 text-white">
+      <div className="bg-gradient-to-r from-green-300 via-green-500 to-green-600 shadow-md rounded-xl p-6 flex flex-col gap-3 text-white">
         {!activeSession ? (
           <>
             <h2 className="text-lg font-semibold">
