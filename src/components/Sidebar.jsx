@@ -18,21 +18,18 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const navItems = [
     { path: "/dashboard", icon: faHome, label: "Dashboard" },
-    { path: "/akun", icon: faUser, label: "Akun" },
     { path: "/kasir", icon: faCashRegister, label: "Kasir" },
     { path: "/laporan", icon: faChartLine, label: "Laporan" },
     { path: "/inventori", icon: faBoxes, label: "Inventori" },
     { path: "/operator", icon: faUsers, label: "Operator" },
+    { path: "/akun", icon: faUser, label: "Akun" },
   ];
 
   return (
     <>
       {/* Overlay untuk mobile */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40 md:hidden"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 z-40 md:hidden" onClick={onClose} />
       )}
 
       {/* Sidebar */}
@@ -70,9 +67,9 @@ export default function Sidebar({ isOpen, onClose }) {
                       : "text-green-700"
                   }`}
               >
-                <FontAwesomeIcon 
-                  icon={item.icon} 
-                  size="lg" 
+                <FontAwesomeIcon
+                  icon={item.icon}
+                  size="lg"
                   className="flex-shrink-0"
                 />
               </button>
