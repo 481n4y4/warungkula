@@ -7,7 +7,6 @@ import {
   where,
   getDocs,
   doc,
-  runTransaction,
   serverTimestamp,
   getDoc,
   updateDoc,
@@ -84,69 +83,97 @@ export async function createTransactionWithStockUpdate(txPayload) {
     throw new Error("Invalid transaction payload");
   }
 
-  const colRef = await userCollection("transaksi");
-  let newDocRef;
+  console.log("Memulai transaksi dengan payload:", txPayload);
 
-  await runTransaction(db, async (t) => {
-    const productRefs = await Promise.all(
-      txPayload.items.map(
-        async (it) => await userDoc("inventori", it.productId)
-      )
-    );
+  const user = auth.currentUser;
+  if (!user) throw new Error("User belum login");
 
-    const productSnaps = await Promise.all(
-      productRefs.map((ref) => t.get(ref))
-    );
+  try {
+    // 1. Update stok untuk setiap produk
+    for (const item of txPayload.items) {
+      const productRef = doc(db, `users/${user.uid}/inventori`, item.productId);
+      const productSnap = await getDoc(productRef);
 
-    for (let i = 0; i < txPayload.items.length; i++) {
-      const it = txPayload.items[i];
-      const pSnap = productSnaps[i];
-      if (!pSnap.exists()) throw new Error(`Produk ${it.name} tidak ditemukan`);
-
-      const pData = pSnap.data();
-      const units = Array.isArray(pData.units) ? pData.units : [];
-      const idx = units.findIndex((u) => u.unit === it.unit);
-      if (idx === -1) throw new Error(`Unit ${it.unit} tidak ditemukan`);
-
-      if (units[idx].stock < it.qty) {
-        throw new Error(`Stok tidak cukup untuk ${it.name} (${it.unit})`);
+      if (!productSnap.exists()) {
+        throw new Error(`Produk ${item.name} tidak ditemukan`);
       }
 
-      units[idx].stock -= it.qty;
-      t.update(productRefs[i], { units });
+      const productData = productSnap.data();
+      const units = Array.isArray(productData.units) ? productData.units : [];
+      const unitIndex = units.findIndex((u) => u.unit === item.unit);
+
+      if (unitIndex === -1) {
+        throw new Error(
+          `Unit ${item.unit} tidak ditemukan untuk produk ${item.name}`
+        );
+      }
+
+      if (units[unitIndex].stock < item.qty) {
+        throw new Error(
+          `Stok tidak cukup untuk ${item.name} (${item.unit}). Stok tersedia: ${units[unitIndex].stock}`
+        );
+      }
+
+      // Kurangi stok
+      units[unitIndex].stock -= item.qty;
+      await updateDoc(productRef, { units });
+      console.log(
+        `Stok updated untuk ${item.name}: ${
+          units[unitIndex].stock + item.qty
+        } -> ${units[unitIndex].stock}`
+      );
     }
 
-    newDocRef = doc(colRef);
-    t.set(newDocRef, {
-      items: txPayload.items,
-      subtotal: txPayload.subtotal,
-      total: txPayload.total,
-      payment: txPayload.payment,
-      change: txPayload.change,
-      paymentMethod: txPayload.paymentMethod || "Tunai",
-      note: txPayload.note,
-      storeSessionId: txPayload.storeSessionId,
+    // 2. Simpan transaksi
+    const transaksiRef = collection(db, `users/${user.uid}/transaksi`);
+    const transactionData = {
+      ...txPayload,
+      totalPrice: txPayload.total,
       createdAt: serverTimestamp(),
-    });
-  });
+      updatedAt: serverTimestamp(),
+    };
 
-  return newDocRef;
+    const docRef = await addDoc(transaksiRef, transactionData);
+    console.log("Transaksi berhasil dibuat dengan ID:", docRef.id);
+
+    return { id: docRef.id };
+  } catch (error) {
+    console.error("Error dalam transaksi:", error);
+
+    // Rollback stok jika transaksi gagal
+    if (error.message.includes("Stok tidak cukup")) {
+      throw error; // Jangan rollback untuk error stok
+    }
+
+    throw new Error(`Gagal membuat transaksi: ${error.message}`);
+  }
+}
+
+export async function getTransactionById(transactionId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("User belum login");
+
+  const docRef = doc(db, `users/${user.uid}/transaksi`, transactionId);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    throw new Error(`Transaksi dengan ID ${transactionId} tidak ditemukan`);
+  }
+
+  return { id: snap.id, ...snap.data() };
 }
 
 export async function getAllTransactions() {
-  const snapshot = await getDocs(userCollection("transaksi"));
+  const user = auth.currentUser;
+  if (!user) throw new Error("User belum login");
+
+  const transaksiRef = collection(db, `users/${user.uid}/transaksi`);
+  const snapshot = await getDocs(transaksiRef);
+
   return snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
   }));
-}
-
-export async function getTransactionById(transactionId) {
-  const user = auth.currentUser || (await waitForUser());
-  const docRef = doc(db, `users/${user.uid}/transaksi`, transactionId);
-  const snap = await getDoc(docRef);
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() };
 }
 
 // ======================================================

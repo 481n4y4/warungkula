@@ -6,13 +6,13 @@ import {
   searchProductsByName,
   createTransactionWithStockUpdate,
   getActiveStoreSession,
+  auth, // ✅ TAMBAHKAN INI
 } from "../firebase/firebase";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { serverTimestamp } from "firebase/firestore";
 import Sidebar from "../components/Sidebar";
 
 function formatCurrency(num = 0) {
@@ -151,9 +151,10 @@ export default function Kasir() {
   const removeItem = (key) =>
     setCart((prev) => prev.filter((it) => it.key !== key));
 
-  // ✅ Checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return toast.warn("Keranjang masih kosong!");
+    if (!paymentMethod) return toast.error("Pilih metode pembayaran!");
+
     const paid = Number(payment);
     if (isNaN(paid) || paid < total)
       return toast.error("Pembayaran tidak cukup atau tidak valid!");
@@ -170,31 +171,36 @@ export default function Kasir() {
       })),
       subtotal,
       total,
+      totalPrice: total,
       payment: paid,
       change: paid - total,
       paymentMethod,
       note,
       storeSessionId: activeSession?.id || null,
-      createdAt: serverTimestamp(),
     };
+
+    console.log("Payload transaksi:", txPayload);
+    console.log("User ID:", auth.currentUser?.uid); // ✅ SEKARAH SUDAH BISA
 
     setLoading(true);
     try {
-      // simpan transaksi ke firestore
-      const docRef = await createTransactionWithStockUpdate(txPayload);
-      console.log("Transaksi berhasil:", docRef.id);
-
-      // kurangi stok
-      await createTransactionWithStockUpdate(txPayload);
+      const result = await createTransactionWithStockUpdate(txPayload);
+      console.log("Transaksi berhasil, ID:", result.id);
 
       setCart([]);
       setPayment("");
       setNote("");
+      setPaymentMethod("");
+      setProductResults([]);
+      setSearchTerm("");
 
-      navigate("/receipt", { state: { id: docRef.id } });
+      toast.success("Transaksi berhasil!");
+
+      // Navigate ke receipt page dengan ID transaksi
+      navigate("/receipt", { state: { id: result.id } });
     } catch (error) {
-      console.error(error);
-      toast.error("Gagal menyimpan transaksi!");
+      console.error("Error checkout:", error);
+      toast.error(`Gagal menyimpan transaksi: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -399,6 +405,7 @@ export default function Kasir() {
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500 mt-1 text-sm"
+                    required
                   >
                     <option value="">Pilih metode...</option>
                     <option value="Tunai">Tunai</option>
@@ -415,6 +422,7 @@ export default function Kasir() {
                     value={payment}
                     onChange={(e) => setPayment(e.target.value)}
                     className="w-full p-2 border rounded-xl focus:ring-2 focus:ring-blue-500"
+                    min={total}
                   />
                   <div className="text-sm text-gray-700">
                     Kembalian:{" "}
@@ -440,8 +448,8 @@ export default function Kasir() {
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleCheckout}
-                    disabled={loading}
-                    className="flex-1 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm transition"
+                    disabled={loading || cart.length === 0}
+                    className="flex-1 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {loading ? "Memproses..." : "Checkout"}
                   </button>
@@ -449,6 +457,7 @@ export default function Kasir() {
                     onClick={() => {
                       setCart([]);
                       setPayment("");
+                      setPaymentMethod("");
                     }}
                     className="py-2 px-4 rounded-xl border font-semibold hover:bg-gray-100 transition"
                   >
