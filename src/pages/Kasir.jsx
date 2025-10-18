@@ -1,12 +1,12 @@
 // src/pages/Kasir.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import QrReader from "react-qr-reader-es6";
 import {
   getProductByBarcode,
   searchProductsByName,
   createTransactionWithStockUpdate,
   getActiveStoreSession,
-  auth, // ✅ TAMBAHKAN INI
+  auth,
 } from "../firebase/firebase";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faXmark } from "@fortawesome/free-solid-svg-icons";
@@ -32,6 +32,9 @@ export default function Kasir() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setScannerOpen] = useState(false);
   const navigate = useNavigate();
+  
+  // ✅ Gunakan ref untuk mencegah double scan
+  const scanProcessed = useRef(false);
 
   const subtotal = cart.reduce((s, it) => s + it.qty * it.sellPrice, 0);
   const total = subtotal;
@@ -48,63 +51,7 @@ export default function Kasir() {
     checkSession();
   }, [navigate]);
 
-  // ✅ Fungsi pencarian produk (bisa dari scan atau ketik manual)
-  const performSearch = async (term) => {
-    if (!term?.trim()) return;
-    setLoading(true);
-
-    try {
-      let results = [];
-
-      if (/^\d+$/.test(term) || term.startsWith("BR")) {
-        // cari berdasarkan barcode
-        const product = await getProductByBarcode(term);
-        if (product) results = [product];
-      } else {
-        // cari berdasarkan nama
-        results = await searchProductsByName(term);
-      }
-
-      setProductResults(results);
-
-      if (results.length === 0) {
-        toast.info("Produk tidak ditemukan.");
-      } else if (results.length === 1 && results[0].units?.length === 1) {
-        const product = results[0];
-        const unit = product.units[0];
-        addToCart(product, unit, 1);
-        toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
-      } else {
-        toast.info("Pilih produk atau satuan yang sesuai.");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Gagal mencari produk!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ✅ Handle input pencarian manual
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    performSearch(searchTerm);
-  };
-
-  // ✅ Handle hasil scan barcode
-  const handleScan = async (result) => {
-    if (result && result !== lastScanned) {
-      setLastScanned(result);
-      performSearch(result);
-    }
-  };
-
-  const handleError = (err) => {
-    console.error(err);
-    toast.error("Gagal membaca QR Code!");
-  };
-
-  // ✅ Tambah ke keranjang
+  // ✅ Fungsi untuk menambah ke cart
   const addToCart = (product, unitObj, qty = 1) => {
     if (!product || !unitObj) return;
     const key = `${product.id}|${unitObj.unit}`;
@@ -132,6 +79,90 @@ export default function Kasir() {
         },
       ];
     });
+  };
+
+  // ✅ Fungsi pencarian produk yang diperbaiki
+  const performSearch = async (term) => {
+    if (!term?.trim()) return;
+    
+    // Reset flag scan
+    scanProcessed.current = false;
+    setLoading(true);
+
+    try {
+      let results = [];
+
+      // Cari berdasarkan barcode (untuk scan atau input manual)
+      if (/^\d+$/.test(term) || term.startsWith("BR")) {
+        const product = await getProductByBarcode(term);
+        if (product) results = [product];
+      } else {
+        // Cari berdasarkan nama
+        results = await searchProductsByName(term);
+      }
+
+      setProductResults(results);
+
+      if (results.length === 0) {
+        toast.info("Produk tidak ditemukan.");
+      } 
+      // ✅ PERBAIKAN: Auto-add ke cart jika hasil scan hanya 1 produk
+      else if (results.length === 1) {
+        const product = results[0];
+        
+        // Jika produk hanya punya 1 unit, langsung tambah ke cart
+        if (product.units?.length === 1) {
+          const unit = product.units[0];
+          addToCart(product, unit, 1);
+          toast.success(`✅ ${product.name} ditambahkan ke keranjang!`);
+          setSearchTerm(""); // Clear search term
+          setProductResults([]); // Clear results
+        }
+        // Jika produk punya multiple units, tampilkan pilihan
+        else {
+          toast.info("Pilih satuan yang diinginkan.");
+        }
+      }
+      // Jika multiple products ditemukan, tampilkan semuanya
+      else {
+        toast.info(`Ditemukan ${results.length} produk. Pilih yang sesuai.`);
+      }
+    } catch (err) {
+      console.error("Error searching product:", err);
+      toast.error("Gagal mencari produk!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Handle input pencarian manual
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    await performSearch(searchTerm);
+  };
+
+  // ✅ Handle hasil scan barcode - DIPERBAIKI
+  const handleScan = async (result) => {
+    if (!result || scanProcessed.current) return;
+    
+    console.log("Scan result:", result);
+    
+    // Set flag untuk mencegah double processing
+    scanProcessed.current = true;
+    
+    // Update last scanned
+    setLastScanned(result);
+    
+    // Process scan
+    await performSearch(result);
+    
+    // Tutup scanner setelah berhasil scan
+    setScannerOpen(false);
+  };
+
+  const handleError = (err) => {
+    console.error("Scanner error:", err);
+    toast.error("Gagal membaca QR Code/Barcode!");
   };
 
   // ✅ Ubah qty item
@@ -180,7 +211,7 @@ export default function Kasir() {
     };
 
     console.log("Payload transaksi:", txPayload);
-    console.log("User ID:", auth.currentUser?.uid); // ✅ SEKARAH SUDAH BISA
+    console.log("User ID:", auth.currentUser?.uid);
 
     setLoading(true);
     try {
@@ -206,6 +237,13 @@ export default function Kasir() {
     }
   };
 
+  // ✅ Reset scan flag ketika scanner dibuka/tutup
+  useEffect(() => {
+    if (isScannerOpen) {
+      scanProcessed.current = false;
+    }
+  }, [isScannerOpen]);
+
   // ✅ Tampilan
   return (
     <section className="flex min-h-screen">
@@ -229,7 +267,10 @@ export default function Kasir() {
               <h2 className="font-semibold text-lg">Pemindai Barcode</h2>
 
               <button
-                onClick={() => setScannerOpen(true)}
+                onClick={() => {
+                  setScannerOpen(true);
+                  scanProcessed.current = false; // Reset flag
+                }}
                 className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow transition"
               >
                 Buka Pemindai
@@ -267,7 +308,11 @@ export default function Kasir() {
                       {(p.units || []).map((u) => (
                         <button
                           key={u.unit}
-                          onClick={() => addToCart(p, u, 1)}
+                          onClick={() => {
+                            addToCart(p, u, 1);
+                            setProductResults([]); // Clear results setelah pilih
+                            setSearchTerm(""); // Clear search term
+                          }}
                           className="px-2 py-1 text-xs rounded-lg border bg-white hover:bg-blue-50 transition"
                         >
                           {u.unit} — {formatCurrency(u.sellPrice)}
@@ -296,10 +341,7 @@ export default function Kasir() {
                       <QrReader
                         delay={300}
                         onError={handleError}
-                        onScan={(result) => {
-                          handleScan(result);
-                          if (result) setScannerOpen(false);
-                        }}
+                        onScan={handleScan}
                         style={{ width: "100%" }}
                       />
                     </div>
@@ -313,6 +355,7 @@ export default function Kasir() {
             </div>
 
             {/* ========== KERANJANG ========== */}
+            {/* ... (keranjang section tetap sama) ... */}
             <div className="bg-white p-5 rounded-2xl shadow-sm border flex flex-col">
               <h2 className="font-semibold text-lg mb-3">Keranjang</h2>
 
