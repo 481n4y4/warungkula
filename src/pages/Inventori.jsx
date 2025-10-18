@@ -12,7 +12,7 @@ import {
   faBox,
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
-import { getItems, deleteItem } from "../services/InventoriService.js";
+import { getItems, deleteItem } from "../services/inventoriService.js";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 
