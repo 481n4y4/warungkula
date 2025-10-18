@@ -1,3 +1,4 @@
+// src/pages/TambahBarang.jsx
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -5,8 +6,9 @@ import {
   faPlus,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
-import { addItem } from "../services/inventoriService";
 import { useNavigate } from "react-router-dom";
+import { db, waitForUser } from "../firebase/firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 export default function TambahBarang() {
   const navigate = useNavigate();
@@ -19,8 +21,10 @@ export default function TambahBarang() {
     { unit: "", purchasePrice: "", sellPrice: "", stock: "" },
   ]);
 
+  // Fungsi generate barcode otomatis
   const generateBarcode = () => "BR" + Date.now();
 
+  // Tambah satuan baru
   const handleAddUnit = () => {
     setUnits([
       ...units,
@@ -28,18 +32,21 @@ export default function TambahBarang() {
     ]);
   };
 
+  // Ubah nilai di input satuan
   const handleUnitChange = (index, field, value) => {
     const updated = [...units];
     updated[index][field] = value;
     setUnits(updated);
   };
 
+  // Hapus satuan
   const handleRemoveUnit = (index) => {
     const updated = [...units];
     updated.splice(index, 1);
     setUnits(updated);
   };
 
+  // Fungsi untuk simpan ke Firestore
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -57,14 +64,27 @@ export default function TambahBarang() {
         sellPrice: Number(u.sellPrice),
         stock: Number(u.stock),
       })),
+      createdAt: new Date(),
     };
 
-    await addItem(newItem);
-    navigate("/inventori");
+    try {
+      // Pastikan user sudah login
+      const user = await waitForUser();
+
+      // Simpan ke koleksi user
+      await addDoc(collection(db, `users/${user.uid}/inventori`), newItem);
+
+      alert("Barang berhasil ditambahkan!");
+      navigate("/inventori");
+    } catch (err) {
+      console.error("❌ Gagal menambahkan barang:", err);
+      alert("Gagal menambahkan barang: " + err.message);
+    }
   };
 
   return (
     <section>
+      {/* Navbar */}
       <nav className="bg-white shadow-sm p-4 flex items-center top-0 z-50 sticky">
         <button
           onClick={() => navigate("/inventori")}
@@ -76,13 +96,14 @@ export default function TambahBarang() {
           Tambah Barang
         </h1>
       </nav>
+
+      {/* Form */}
       <div>
-        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="max-w-3xl mx-auto p-6 space-y-6"
         >
-          {/* Nama barang */}
+          {/* Nama Barang */}
           <div>
             <label className="block font-medium text-gray-700 mb-2">
               Nama Barang
@@ -199,7 +220,7 @@ export default function TambahBarang() {
             </button>
           </div>
 
-          {/* Keterangan */}
+          {/* Deskripsi */}
           <div>
             <label className="block font-medium text-gray-700 mb-2">
               Keterangan

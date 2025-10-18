@@ -66,13 +66,8 @@ export default function BarcodePrint() {
 
             {/* ✅ Generate QR Code */}
             <QRCodeCanvas
-              value={JSON.stringify({
-                id: item.id,
-                name: item.name,
-                barcode: item.barcode,
-                unit: item.units?.[0]?.unit || "",
-              })}
-              size={180}
+              value={item.barcode || "NO_BARCODE"} // ✅ HANYA BARCODE
+              size={160}
               level="H"
               includeMargin={true}
             />

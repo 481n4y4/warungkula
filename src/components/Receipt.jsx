@@ -1,7 +1,7 @@
+// src/components/Receipt.jsx
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { getTransactionById } from "../firebase/firebase";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,41 +11,82 @@ export default function Receipt() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!state?.id) return;
-      const snap = await getDoc(doc(db, "transaksi", state.id));
-      if (snap.exists()) setData(snap.data());
+      if (!state?.id) {
+        navigate("/kasir");
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const transactionData = await getTransactionById(state.id);
+        setData(transactionData);
+      } catch (error) {
+        console.error("Error fetching receipt:", error);
+        alert("Gagal memuat data struk");
+        navigate("/kasir");
+      } finally {
+        setLoading(false);
+      }
     };
+    
     fetchData();
-  }, [state]);
+  }, [state, navigate]);
 
   const handleDownload = () => {
     const element = document.getElementById("receipt");
-    html2canvas(element, { scale: 2 }).then((canvas) => {
+    html2canvas(element, { 
+      scale: 2,
+      useCORS: true,
+      logging: false 
+    }).then((canvas) => {
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       const imgWidth = 190;
+      const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
       pdf.save(`struk-${state.id}.pdf`);
     });
   };
 
-  if (!data)
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-600 text-sm">
         Memuat struk...
       </div>
     );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-600 text-sm">
+        Struk tidak ditemukan
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <nav className="bg-white shadow-sm p-4 flex items-center top-0 z-50 sticky">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/kasir")}
           className="text-gray-600 hover:text-gray-900 transition"
         >
           <FontAwesomeIcon icon={faArrowLeft} size="lg" />
@@ -65,9 +106,9 @@ export default function Receipt() {
             WarungKula
           </h2>
           <p className="text-center text-gray-500 text-xs mb-4">
-            {data.createdAt
+            {data.createdAt && data.createdAt.toDate 
               ? new Date(data.createdAt.toDate()).toLocaleString("id-ID")
-              : "-"}
+              : new Date().toLocaleString("id-ID")}
           </p>
 
           <div className="border-t border-b border-gray-200 py-2 mb-4">
@@ -93,7 +134,7 @@ export default function Receipt() {
               <span>Rp {data.total.toLocaleString("id-ID")}</span>
             </div>
             <div className="flex justify-between">
-              <span>Tunai</span>
+              <span>Bayar ({data.paymentMethod})</span>
               <span>Rp {data.payment.toLocaleString("id-ID")}</span>
             </div>
             <div className="flex justify-between">
@@ -112,15 +153,14 @@ export default function Receipt() {
               onClick={handleDownload}
               className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
             >
-              Download Struk
+              Download Struk (PDF)
             </button>
             <button
               onClick={() => navigate("/kasir")}
               className="w-full text-white py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition"
             >
-              Mode Kasir
+              Kembali ke Kasir
             </button>
-
             <button
               onClick={() => window.print()}
               className="w-full border border-gray-300 py-2 rounded-lg hover:bg-gray-100 transition"
