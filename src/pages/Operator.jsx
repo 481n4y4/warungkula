@@ -8,7 +8,6 @@ import {
   faEdit,
   faSearch,
 } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
 import {
   getAllOperators,
   addOperator,
@@ -18,7 +17,6 @@ import {
 import Sidebar from "../components/Sidebar";
 
 export default function Operator() {
-  const navigate = useNavigate();
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -61,9 +59,9 @@ export default function Operator() {
     op.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  // const handleChange = (e) => {
-  //   setForm({ ...form, [e.target.name]: e.target.value });
-  // };
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -130,14 +128,14 @@ export default function Operator() {
             <FontAwesomeIcon icon={faBars} />
           </button>
 
-          <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
+          <h1 className="text-xl font-bold text-gray-800">Operator</h1>
         </nav>
 
         <div>
           {/* Konten utama */}
           <div className="p-4 max-w-5xl mx-auto">
             {/* Search Bar */}
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-between mb-4">
               <div className="relative w-full sm:w-2/3 md:w-1/2">
                 <FontAwesomeIcon
                   icon={faSearch}
@@ -151,6 +149,12 @@ export default function Operator() {
                   className="w-full pl-10 pr-3 py-2 border rounded-md focus:outline-blue-500"
                 />
               </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition"
+              >
+                <FontAwesomeIcon icon={faPlus} /> Tambah
+              </button>
             </div>
 
             {/* Tabel data */}
