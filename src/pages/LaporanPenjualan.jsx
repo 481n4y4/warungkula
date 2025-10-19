@@ -52,10 +52,8 @@ export default function LaporanPenjualan() {
       setAuthLoading(false);
 
       if (user) {
-        console.log("✅ User logged in:", user.email);
         await fetchData();
       } else {
-        console.log("❌ No user logged in");
         setLoading(false);
         setTransaksi([]);
         setFilteredData([]);
@@ -69,10 +67,8 @@ export default function LaporanPenjualan() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log("🔄 Memulai fetch data transaksi...");
 
       const data = await getAllTransactions();
-      console.log("📊 Data transaksi dari Firebase:", data);
 
       if (Array.isArray(data) && data.length > 0) {
         // Filter dan validasi data
@@ -93,9 +89,7 @@ export default function LaporanPenjualan() {
             items: tx.items || [],
           }));
 
-        console.log(
-          `✅ Data valid: ${validData.length} dari ${data.length} transaksi`
-        );
+        
         setTransaksi(validData);
         setFilteredData(validData);
       } else {
@@ -210,12 +204,6 @@ export default function LaporanPenjualan() {
     }
 
     const startDate = subDays(now, daysAgo - 1);
-    console.log(
-      `📈 Generating chart data for ${daysAgo} days from`,
-      startDate,
-      "to",
-      now
-    );
 
     const chartData = filteredData.filter((tx) => {
       try {
@@ -228,7 +216,6 @@ export default function LaporanPenjualan() {
       }
     });
 
-    console.log(`📊 Transactions in range: ${chartData.length}`);
 
     // Group by date
     const groupedData = {};
@@ -266,7 +253,6 @@ export default function LaporanPenjualan() {
       return new Date(2024, ma - 1, da) - new Date(2024, mb - 1, db);
     });
 
-    console.log("📋 Final chart data:", result);
     return result;
   };
 
@@ -328,7 +314,6 @@ export default function LaporanPenjualan() {
       });
     }
 
-    console.log("📅 Last 7 days data:", last7Days);
     return last7Days;
   };
 
@@ -348,11 +333,6 @@ export default function LaporanPenjualan() {
       }
     });
 
-    console.log(
-      `📅 Data untuk ${selectedDate}:`,
-      chosenDayData.length,
-      "transaksi"
-    );
     return chosenDayData;
   };
 
@@ -414,11 +394,6 @@ export default function LaporanPenjualan() {
 
   // handleExportPDF
   const handleExportPDF = () => {
-    console.log("=== DEBUG DATA UNTUK PDF ===");
-    console.log("Transaksi:", transaksi);
-    console.log("Last 7 Days:", last7Days);
-    console.log("Chosen Day Data:", chosenDayData);
-    console.log("Payment Methods:", paymentMethods);
 
     // Validasi setiap item transaksi
     transaksi.forEach((tx, index) => {
@@ -442,7 +417,6 @@ export default function LaporanPenjualan() {
   // 🔹 Fungsi untuk ekspor PDF - DIPERBAIKI dengan validasi data
 const exportToPDF = () => {
   try {
-    console.log("🔄 Memulai ekspor PDF...");
 
     const doc = new jsPDF("p", "mm", "a4");
     let yPosition = 20;
@@ -799,7 +773,6 @@ const exportToPDF = () => {
       new Date(),
       "dd-MM-yyyy_HH-mm"
     )}.pdf`;
-    console.log("✅ PDF berhasil dibuat, menyimpan sebagai:", fileName);
     doc.save(fileName);
   } catch (error) {
     console.error("❌ Gagal mengekspor PDF:", error);
