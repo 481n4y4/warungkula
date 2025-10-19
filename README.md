@@ -46,9 +46,7 @@ A modern and responsive Point of Sale (POS) web application built with React.js 
 warungkula/
 ├── src/
 │   ├── pages/           # React page components
-│   │   └── inventori.jsx
 │   ├── services/        # Business logic and API services
-│   │   └── inventorsService.js
 │   ├── components/      # Reusable UI components
 │   └── assets/          # Static files (images, icons)
 ├── public/              # Public assets
