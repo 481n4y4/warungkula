@@ -11,6 +11,7 @@ import Receipt from "./components/Receipt";
 import Laporan from "./pages/LaporanPenjualan";
 import Operator from "./pages/Operator";
 import Akun from "./pages/PengaturanAkun";
+import TambahStok from "./pages/TambahStok";
 
 export default function App() {
   return (
@@ -28,7 +29,7 @@ export default function App() {
         <Route path="/laporan" element={<Laporan />} />
         <Route path="/operator" element={<Operator />} />
         <Route path="/akun" element={<Akun />} />
-        
+        <Route path="/tambah-stok" element={<TambahStok />} />
       </Routes>
     </Router>
   );

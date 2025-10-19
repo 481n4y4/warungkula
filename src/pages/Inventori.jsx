@@ -110,7 +110,8 @@ export default function Inventori() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar dengan fixed positioning */}
-      <div className={`
+      <div
+        className={`
         fixed lg:static
         inset-y-0 left-0
         md:w-[96px]
@@ -118,9 +119,12 @@ export default function Inventori() {
         h-screen
         transform transition-transform duration-300 ease-in-out
         z-40
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }
         overflow-y-auto
-      `}>
+      `}
+      >
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
@@ -129,7 +133,7 @@ export default function Inventori() {
 
       {/* Overlay untuk mobile */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 z-30"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -257,6 +261,14 @@ export default function Inventori() {
               >
                 <FontAwesomeIcon icon={faPlus} />
                 <span>Tambah Barang</span>
+              </button>
+
+              <button
+                onClick={() => navigate("/tambah-stok")}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-medium"
+              >
+                <FontAwesomeIcon icon={faPlus} />
+                <span>Tambah Stok</span>
               </button>
             </div>
           </div>
