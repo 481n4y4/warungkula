@@ -23,8 +23,13 @@ import {
   faChartLine,
   faReceipt,
   faShoppingCart,
+  faFilePdf,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
-import { getAllTransactions } from "../firebase/firebase";
+import { getAllTransactions, auth } from "../firebase/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 export default function LaporanPenjualan() {
   const [transaksi, setTransaksi] = useState([]);
@@ -37,58 +42,94 @@ export default function LaporanPenjualan() {
   const [timeRange, setTimeRange] = useState("30days");
   const laporanRef = useRef();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // 🔹 Ambil data transaksi dari firebase.js
+  // 🔹 Cek status autentikasi
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        console.log("🔄 Memulai fetch data transaksi...");
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user);
+      setAuthLoading(false);
 
-        const data = await getAllTransactions();
-        console.log("📊 Data transaksi dari Firebase:", data);
-
-        if (Array.isArray(data) && data.length > 0) {
-          // Filter dan validasi data
-          const validData = data
-            .filter((tx) => {
-              const isValid =
-                tx && (tx.total > 0 || tx.totalPrice > 0) && tx.createdAt;
-              if (!isValid) {
-                console.warn("Transaksi tidak valid:", tx);
-              }
-              return isValid;
-            })
-            .map((tx) => ({
-              ...tx,
-              // Normalisasi data
-              total: Number(tx.total) || Number(tx.totalPrice) || 0,
-              paymentMethod: tx.paymentMethod || "Tunai",
-              items: tx.items || [],
-            }));
-
-          console.log(
-            `✅ Data valid: ${validData.length} dari ${data.length} transaksi`
-          );
-          setTransaksi(validData);
-          setFilteredData(validData);
-        } else {
-          console.warn("⚠️ Tidak ada data transaksi atau data bukan array");
-          setTransaksi([]);
-          setFilteredData([]);
-        }
-      } catch (err) {
-        console.error("❌ Gagal mengambil data transaksi:", err);
+      if (user) {
+        console.log("✅ User logged in:", user.email);
+        await fetchData();
+      } else {
+        console.log("❌ No user logged in");
+        setLoading(false);
         setTransaksi([]);
         setFilteredData([]);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchData();
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // 🔹 Helper function untuk mendapatkan tanggal transaksi - DIPERBAIKI
+  // 🔹 Ambil data transaksi dari firebase.js
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      console.log("🔄 Memulai fetch data transaksi...");
+
+      const data = await getAllTransactions();
+      console.log("📊 Data transaksi dari Firebase:", data);
+
+      if (Array.isArray(data) && data.length > 0) {
+        // Filter dan validasi data
+        const validData = data
+          .filter((tx) => {
+            const isValid =
+              tx && (tx.total > 0 || tx.totalPrice > 0) && tx.createdAt;
+            if (!isValid) {
+              console.warn("Transaksi tidak valid:", tx);
+            }
+            return isValid;
+          })
+          .map((tx) => ({
+            ...tx,
+            // Normalisasi data
+            total: Number(tx.total) || Number(tx.totalPrice) || 0,
+            paymentMethod: tx.paymentMethod || "Tunai",
+            items: tx.items || [],
+          }));
+
+        console.log(
+          `✅ Data valid: ${validData.length} dari ${data.length} transaksi`
+        );
+        setTransaksi(validData);
+        setFilteredData(validData);
+      } else {
+        console.warn("⚠️ Tidak ada data transaksi atau data bukan array");
+        setTransaksi([]);
+        setFilteredData([]);
+      }
+    } catch (err) {
+      console.error("❌ Gagal mengambil data transaksi:", err);
+      // Jika error karena auth, set data kosong
+      if (err.message.includes("User belum login")) {
+        setTransaksi([]);
+        setFilteredData([]);
+      } else {
+        throw err;
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setTransaksi([]);
+      setFilteredData([]);
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
+  // 🔹 Helper function untuk mendapatkan tanggal transaksi
   const getTransactionDate = (tx) => {
     if (!tx.createdAt) {
       console.warn("Transaksi tanpa createdAt:", tx);
@@ -124,7 +165,7 @@ export default function LaporanPenjualan() {
     }
   };
 
-  // 🔹 Helper function untuk mendapatkan total transaksi - DIPERBAIKI
+  // 🔹 Helper function untuk mendapatkan total transaksi
   const getTransactionTotal = (tx) => {
     const total = Number(tx.total) || Number(tx.totalPrice) || 0;
     if (total === 0) {
@@ -133,9 +174,26 @@ export default function LaporanPenjualan() {
     return total;
   };
 
+  // 🔹 Jika sedang loading auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Memeriksa autentikasi...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔹 Jika belum login, tampilkan halaman login
+  if (!user) {
+    return <Login onLoginSuccess={fetchData} />;
+  }
+
   const now = new Date();
 
-  // 🔹 Data untuk grafik berdasarkan time range - DIPERBAIKI
+  // 🔹 Data untuk grafik berdasarkan time range
   const getChartData = () => {
     let daysAgo;
     switch (timeRange) {
@@ -214,7 +272,7 @@ export default function LaporanPenjualan() {
 
   const chartData = getChartData();
 
-  // 🔹 Data metode pembayaran - DIPERBAIKI
+  // 🔹 Data metode pembayaran
   const paymentMethodData = filteredData.reduce((acc, tx) => {
     try {
       const method = tx.paymentMethod || "Tunai";
@@ -241,7 +299,7 @@ export default function LaporanPenjualan() {
   const paymentMethods = Object.values(paymentMethodData);
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-  // 🔹 7 Hari Terakhir untuk tabel - DIPERBAIKI
+  // 🔹 7 Hari Terakhir untuk tabel
   const getLast7DaysData = () => {
     const last7Days = [];
 
@@ -277,7 +335,7 @@ export default function LaporanPenjualan() {
   const last7Days = getLast7DaysData();
   const total7Hari = last7Days.reduce((acc, d) => acc + d.total, 0);
 
-  // 🔹 Data untuk tanggal yang dipilih - DIPERBAIKI
+  // 🔹 Data untuk tanggal yang dipilih
   const getChosenDateData = () => {
     const chosenDate = new Date(selectedDate);
     const chosenDayData = filteredData.filter((tx) => {
@@ -311,7 +369,7 @@ export default function LaporanPenjualan() {
       minimumFractionDigits: 0,
     }).format(value || 0);
 
-  // Custom Tooltip untuk grafik - DIPERBAIKI
+  // Custom Tooltip untuk grafik
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -329,7 +387,440 @@ export default function LaporanPenjualan() {
     return null;
   };
 
-  // Debug component untuk melihat data
+  // 🔹 Fungsi untuk validasi sebelum ekspor
+  const validateDataBeforeExport = () => {
+    const totalPenjualan = transaksi.reduce(
+      (sum, tx) => sum + getTransactionTotal(tx),
+      0
+    );
+
+    if (transaksi.length === 0) {
+      return {
+        isValid: false,
+        message: "Tidak ada data transaksi untuk diekspor",
+      };
+    }
+
+    if (totalPenjualan === 0) {
+      return {
+        isValid: false,
+        message:
+          "Total penjualan adalah 0, tidak ada data yang berarti untuk diekspor",
+      };
+    }
+
+    return { isValid: true, message: "Data valid" };
+  };
+
+  // handleExportPDF
+  const handleExportPDF = () => {
+    console.log("=== DEBUG DATA UNTUK PDF ===");
+    console.log("Transaksi:", transaksi);
+    console.log("Last 7 Days:", last7Days);
+    console.log("Chosen Day Data:", chosenDayData);
+    console.log("Payment Methods:", paymentMethods);
+
+    // Validasi setiap item transaksi
+    transaksi.forEach((tx, index) => {
+      console.log(`Transaksi ${index}:`, {
+        id: tx.id,
+        total: getTransactionTotal(tx),
+        paymentMethod: tx.paymentMethod,
+        items: tx.items,
+      });
+    });
+
+    const validation = validateDataBeforeExport();
+    if (!validation.isValid) {
+      alert(validation.message);
+      return;
+    }
+
+    exportToPDF();
+  };
+
+  // 🔹 Fungsi untuk ekspor PDF - DIPERBAIKI dengan validasi data
+  const exportToPDF = () => {
+    try {
+      console.log("🔄 Memulai ekspor PDF...");
+      console.log("Data untuk PDF:");
+      console.log("Total transaksi:", transaksi.length);
+      console.log("7 hari data:", last7Days);
+      console.log("Hari ini data:", chosenDayData.length);
+      console.log("Payment methods:", paymentMethods);
+
+      // Buat instance jsPDF dengan orientasi portrait
+      const doc = new jsPDF("p", "mm", "a4");
+      let yPosition = 15;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+
+      // Header dengan background color
+      doc.setFillColor(34, 197, 94); // Green color
+      doc.rect(0, 0, pageWidth, 25, "F");
+
+      // Judul Laporan
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("LAPORAN PENJUALAN", pageWidth / 2, 12, { align: "center" });
+
+      // Info tanggal dan user
+      doc.setFontSize(10);
+      doc.setTextColor(240, 253, 244);
+      doc.text(
+        `Dibuat: ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+        pageWidth / 2,
+        18,
+        { align: "center" }
+      );
+      doc.text(`Oleh: ${user?.email || "User"}`, pageWidth / 2, 22, {
+        align: "center",
+      });
+
+      yPosition = 35;
+
+      // Statistik Utama
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("STATISTIK UTAMA", margin, yPosition);
+      yPosition += 8;
+
+      const totalPenjualan = transaksi.reduce(
+        (sum, tx) => sum + getTransactionTotal(tx),
+        0
+      );
+      const rataTransaksi =
+        transaksi.length > 0 ? totalPenjualan / transaksi.length : 0;
+
+      const stats = [
+        { label: "Total Penjualan", value: rupiahFormatter(totalPenjualan) },
+        { label: "Total Transaksi", value: `${transaksi.length} transaksi` },
+        {
+          label: "Rata-rata per Transaksi",
+          value: rupiahFormatter(rataTransaksi),
+        },
+        { label: "7 Hari Terakhir", value: rupiahFormatter(total7Hari) },
+        { label: "Hari Ini", value: rupiahFormatter(totalChosenSales) },
+      ];
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+
+      stats.forEach((stat, index) => {
+        // Cek jika perlu page baru
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.text(`${stat.label}:`, margin, yPosition);
+        doc.text(stat.value, pageWidth - margin, yPosition, { align: "right" });
+        yPosition += 7;
+      });
+
+      yPosition += 10;
+
+      // Data 7 Hari Terakhir - dengan validasi data yang ketat
+      const validLast7Days = last7Days.filter(
+        (day) =>
+          day &&
+          typeof day.tanggal === "string" &&
+          typeof day.jumlah === "number" &&
+          typeof day.total === "number" &&
+          day.total > 0
+      );
+
+      if (validLast7Days.length > 0) {
+        // Cek jika perlu page baru
+        if (yPosition > 200) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("7 HARI TERAKHIR", margin, yPosition);
+        yPosition += 8;
+
+        // Pastikan data valid untuk tabel
+        const tableData = validLast7Days.map((day) => {
+          // Validasi setiap field
+          const tanggal =
+            day.tanggal && typeof day.tanggal === "string"
+              ? day.tanggal
+              : "Tanggal tidak valid";
+          const jumlah =
+            typeof day.jumlah === "number" ? day.jumlah.toString() : "0";
+          const total =
+            typeof day.total === "number"
+              ? rupiahFormatter(day.total).replace("Rp", "Rp ")
+              : "Rp 0";
+
+          return [tanggal, jumlah, total];
+        });
+
+        // Tambah total hanya jika ada data valid
+        if (tableData.length > 0) {
+          const totalJumlah = validLast7Days.reduce(
+            (sum, day) => sum + (day.jumlah || 0),
+            0
+          );
+          const totalHari = validLast7Days.reduce(
+            (sum, day) => sum + (day.total || 0),
+            0
+          );
+
+          tableData.push([
+            "TOTAL",
+            totalJumlah.toString(),
+            rupiahFormatter(totalHari).replace("Rp", "Rp "),
+          ]);
+
+          console.log("Data tabel 7 hari:", tableData);
+
+          // Gunakan try-catch untuk autoTable
+          try {
+            doc.autoTable({
+              startY: yPosition,
+              head: [["Tanggal", "Jumlah Transaksi", "Total Penjualan"]],
+              body: tableData,
+              margin: { left: margin, right: margin },
+              styles: {
+                fontSize: 9,
+                cellPadding: 3,
+                lineColor: [200, 200, 200],
+                lineWidth: 0.1,
+              },
+              headStyles: {
+                fillColor: [34, 197, 94],
+                textColor: [255, 255, 255],
+                fontStyle: "bold",
+              },
+              alternateRowStyles: {
+                fillColor: [245, 245, 245],
+              },
+              footStyles: {
+                fillColor: [240, 249, 235],
+                fontStyle: "bold",
+              },
+            });
+
+            yPosition = doc.lastAutoTable.finalY + 10;
+          } catch (tableError) {
+            console.error("Error membuat tabel 7 hari:", tableError);
+            // Skip tabel jika error dan lanjutkan
+            yPosition += 10;
+          }
+        }
+      }
+
+      // Data Transaksi Hari Ini - dengan validasi data yang ketat
+      const validChosenDayData = chosenDayData.filter(
+        (tx) => tx && tx.id && typeof getTransactionTotal(tx) === "number"
+      );
+
+      if (validChosenDayData.length > 0) {
+        if (yPosition > 180) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(
+          `TRANSAKSI ${format(new Date(selectedDate), "dd/MM/yyyy")}`,
+          margin,
+          yPosition
+        );
+        yPosition += 8;
+
+        // Pastikan data valid untuk tabel
+        const transactionData = validChosenDayData.map((tx) => {
+          const txDate = getTransactionDate(tx);
+          const totalItems = tx.items
+            ? tx.items.reduce((sum, item) => sum + (item.qty || 0), 0)
+            : 0;
+
+          // Validasi setiap field
+          const waktu = txDate ? format(txDate, "HH:mm") : "00:00";
+          const idTransaksi = tx.id ? `${tx.id.substring(0, 8)}...` : "N/A";
+          const total =
+            typeof getTransactionTotal(tx) === "number"
+              ? rupiahFormatter(getTransactionTotal(tx)).replace("Rp", "Rp ")
+              : "Rp 0";
+          const metodeBayar =
+            tx.paymentMethod && typeof tx.paymentMethod === "string"
+              ? tx.paymentMethod
+              : "Tunai";
+          const jumlahItem =
+            typeof totalItems === "number" ? totalItems.toString() : "0";
+
+          return [waktu, idTransaksi, total, metodeBayar, jumlahItem];
+        });
+
+        console.log("Data tabel transaksi:", transactionData);
+
+        try {
+          doc.autoTable({
+            startY: yPosition,
+            head: [
+              ["Waktu", "ID Transaksi", "Total", "Metode Bayar", "Jumlah Item"],
+            ],
+            body: transactionData,
+            margin: { left: margin, right: margin },
+            styles: {
+              fontSize: 8,
+              cellPadding: 2,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1,
+            },
+            headStyles: {
+              fillColor: [59, 130, 246],
+              textColor: [255, 255, 255],
+              fontStyle: "bold",
+            },
+            alternateRowStyles: {
+              fillColor: [245, 245, 245],
+            },
+            columnStyles: {
+              0: { cellWidth: 20 }, // Waktu
+              1: { cellWidth: 25 }, // ID Transaksi
+              2: { cellWidth: 30 }, // Total
+              3: { cellWidth: 25 }, // Metode Bayar
+              4: { cellWidth: 20 }, // Jumlah Item
+            },
+          });
+
+          yPosition = doc.lastAutoTable.finalY + 10;
+        } catch (tableError) {
+          console.error("Error membuat tabel transaksi:", tableError);
+          yPosition += 10;
+        }
+      }
+
+      // Metode Pembayaran
+      const validPaymentMethods = paymentMethods.filter(
+        (method) =>
+          method &&
+          method.name &&
+          typeof method.value === "number" &&
+          method.value > 0
+      );
+
+      if (validPaymentMethods.length > 0) {
+        if (yPosition > 150) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("METODE PEMBAYARAN", margin, yPosition);
+        yPosition += 8;
+
+        // Pastikan data valid untuk tabel
+        const paymentData = validPaymentMethods.map((method) => {
+          const nama =
+            method.name && typeof method.name === "string"
+              ? method.name
+              : "Tidak diketahui";
+          const total =
+            typeof method.value === "number"
+              ? rupiahFormatter(method.value).replace("Rp", "Rp ")
+              : "Rp 0";
+          const count =
+            typeof method.count === "number"
+              ? `${method.count} transaksi`
+              : "0 transaksi";
+
+          return [nama, total, count];
+        });
+
+        console.log("Data tabel payment:", paymentData);
+
+        try {
+          doc.autoTable({
+            startY: yPosition,
+            head: [["Metode", "Total", "Jumlah Transaksi"]],
+            body: paymentData,
+            margin: { left: margin, right: margin },
+            styles: {
+              fontSize: 9,
+              cellPadding: 3,
+              lineColor: [200, 200, 200],
+              lineWidth: 0.1,
+            },
+            headStyles: {
+              fillColor: [139, 92, 246],
+              textColor: [255, 255, 255],
+              fontStyle: "bold",
+            },
+            alternateRowStyles: {
+              fillColor: [245, 245, 245],
+            },
+          });
+
+          yPosition = doc.lastAutoTable.finalY + 10;
+        } catch (tableError) {
+          console.error("Error membuat tabel payment:", tableError);
+          // Skip tabel jika error dan lanjutkan
+          yPosition += 10;
+        }
+      }
+
+      // Jika tidak ada data sama sekali, tampilkan pesan
+      if (yPosition <= 50) {
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          "Tidak ada data transaksi yang dapat ditampilkan",
+          pageWidth / 2,
+          yPosition + 20,
+          { align: "center" }
+        );
+      }
+
+      // Footer pada setiap halaman
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          `Halaman ${i} dari ${pageCount} - Warung Kula`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: "center" }
+        );
+      }
+
+      // Simpan PDF
+      const fileName = `Laporan_Penjualan_${format(
+        new Date(),
+        "dd-MM-yyyy_HH-mm"
+      )}.pdf`;
+      console.log("✅ PDF berhasil dibuat, menyimpan sebagai:", fileName);
+      doc.save(fileName);
+    } catch (error) {
+      console.error("❌ Gagal mengekspor PDF:", error);
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+
+      // Tampilkan pesan error yang lebih spesifik
+      let errorMessage = "Gagal mengekspor PDF. Silakan coba lagi.";
+
+      if (error.message.includes("autoTable")) {
+        errorMessage = "Error dalam membuat tabel. Data mungkin tidak valid.";
+      } else if (error.message.includes("jsPDF")) {
+        errorMessage = "Error library PDF. Pastikan browser mendukung.";
+      }
+
+      alert(errorMessage);
+    }
+  };
+
   const DebugInfo = () => (
     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
       <h3 className="font-semibold text-yellow-800 mb-2">Debug Info:</h3>
@@ -390,6 +881,8 @@ export default function LaporanPenjualan() {
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          user={user}
+          onLogout={handleLogout}
         />
       </div>
 
@@ -412,6 +905,27 @@ export default function LaporanPenjualan() {
             <h1 className="text-lg sm:text-xl font-bold text-gray-800">
               Laporan Penjualan
             </h1>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* User Info */}
+            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <FontAwesomeIcon
+                  icon={faUser}
+                  className="text-green-600 text-sm"
+                />
+              </div>
+              <span>{user?.email}</span>
+            </div>
+            {/* Tombol Export PDF */}
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <FontAwesomeIcon icon={faFilePdf} />
+              <span className="hidden sm:inline">Export PDF Lengkap</span>
+            </button>
           </div>
         </nav>
 
