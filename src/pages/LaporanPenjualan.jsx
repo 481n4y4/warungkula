@@ -440,386 +440,373 @@ export default function LaporanPenjualan() {
   };
 
   // 🔹 Fungsi untuk ekspor PDF - DIPERBAIKI dengan validasi data
-  const exportToPDF = () => {
-    try {
-      console.log("🔄 Memulai ekspor PDF...");
-      console.log("Data untuk PDF:");
-      console.log("Total transaksi:", transaksi.length);
-      console.log("7 hari data:", last7Days);
-      console.log("Hari ini data:", chosenDayData.length);
-      console.log("Payment methods:", paymentMethods);
+const exportToPDF = () => {
+  try {
+    console.log("🔄 Memulai ekspor PDF...");
 
-      // Buat instance jsPDF dengan orientasi portrait
-      const doc = new jsPDF("p", "mm", "a4");
-      let yPosition = 15;
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 15;
+    const doc = new jsPDF("p", "mm", "a4");
+    let yPosition = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
+    const lineHeight = 6;
+    const sectionSpacing = 12;
 
-      // Header dengan background color
-      doc.setFillColor(34, 197, 94); // Green color
-      doc.rect(0, 0, pageWidth, 25, "F");
+    // ===== HEADER =====
+    doc.setFillColor(34, 197, 94); // Green
+    doc.rect(0, 0, pageWidth, 30, "F");
 
-      // Judul Laporan
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(255, 255, 255);
-      doc.text("LAPORAN PENJUALAN", pageWidth / 2, 12, { align: "center" });
+    // Judul utama
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text("LAPORAN PENJUALAN", pageWidth / 2, 15, { align: "center" });
 
-      // Info tanggal dan user
-      doc.setFontSize(10);
-      doc.setTextColor(240, 253, 244);
-      doc.text(
-        `Dibuat: ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
-        pageWidth / 2,
-        18,
-        { align: "center" }
-      );
-      doc.text(`Oleh: ${user?.email || "User"}`, pageWidth / 2, 22, {
-        align: "center",
+    // Subtitle
+    doc.setFontSize(11);
+    doc.setTextColor(240, 253, 244);
+    doc.text(
+      `Dibuat: ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+      pageWidth / 2,
+      22,
+      { align: "center" }
+    );
+    doc.text(`Oleh: ${user?.email || "User"}`, pageWidth / 2, 27, {
+      align: "center",
+    });
+
+    yPosition = 40;
+
+    // ===== STATISTIK UTAMA =====
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(34, 197, 94); // Green
+    doc.text("STATISTIK UTAMA", margin, yPosition);
+    yPosition += 8;
+
+    // Garis bawah judul
+    doc.setDrawColor(34, 197, 94);
+    doc.line(margin, yPosition, margin + 60, yPosition);
+    yPosition += 10;
+
+    const totalPenjualan = transaksi.reduce(
+      (sum, tx) => sum + getTransactionTotal(tx),
+      0
+    );
+    const rataTransaksi =
+      transaksi.length > 0 ? totalPenjualan / transaksi.length : 0;
+
+    const stats = [
+      {
+        label: "Total Penjualan",
+        value: rupiahFormatter(totalPenjualan),
+      },
+      { label: "Total Transaksi", value: `${transaksi.length} transaksi` },
+      {
+        label: "Rata-rata per Transaksi",
+        value: rupiahFormatter(rataTransaksi),
+      },
+      {
+        label: "7 Hari Terakhir",
+        value: rupiahFormatter(total7Hari),
+      },
+      {
+        label: "Hari Ini",
+        value: rupiahFormatter(totalChosenSales),
+      },
+    ];
+
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+
+    stats.forEach((stat, index) => {
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 30;
+      }
+
+      // Background alternatif untuk baris
+      if (index % 2 === 0) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(margin, yPosition - 4, contentWidth, 8, "F");
+      }
+      
+      doc.text(stat.label, margin + 5, yPosition);
+      doc.text(stat.value, pageWidth - margin - 5, yPosition, {
+        align: "right",
       });
 
-      yPosition = 35;
+      yPosition += lineHeight + 2;
+    });
 
-      // Statistik Utama
-      doc.setFontSize(14);
+    yPosition += sectionSpacing;
+
+    // ===== 7 HARI TERAKHIR =====
+    const validLast7Days = last7Days.filter((day) => day && day.total > 0);
+
+    if (validLast7Days.length > 0) {
+      if (yPosition > 220) {
+        doc.addPage();
+        yPosition = 30;
+      }
+
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 0, 0);
-      doc.text("STATISTIK UTAMA", margin, yPosition);
+      doc.setTextColor(59, 130, 246); // Blue
+      doc.text("7 HARI TERAKHIR", margin, yPosition);
       yPosition += 8;
 
-      const totalPenjualan = transaksi.reduce(
-        (sum, tx) => sum + getTransactionTotal(tx),
-        0
-      );
-      const rataTransaksi =
-        transaksi.length > 0 ? totalPenjualan / transaksi.length : 0;
+      // Garis bawah judul
+      doc.setDrawColor(59, 130, 246);
+      doc.line(margin, yPosition, margin + 70, yPosition);
+      yPosition += 12;
 
-      const stats = [
-        { label: "Total Penjualan", value: rupiahFormatter(totalPenjualan) },
-        { label: "Total Transaksi", value: `${transaksi.length} transaksi` },
-        {
-          label: "Rata-rata per Transaksi",
-          value: rupiahFormatter(rataTransaksi),
-        },
-        { label: "7 Hari Terakhir", value: rupiahFormatter(total7Hari) },
-        { label: "Hari Ini", value: rupiahFormatter(totalChosenSales) },
-      ];
+      // Header Tabel
+      doc.setFillColor(59, 130, 246);
+      doc.rect(margin, yPosition, contentWidth, 10, "F");
 
-      doc.setFontSize(10);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      
+      // Kolom TANGGAL - lebih lebar
+      doc.text("TANGGAL", margin + 10, yPosition + 7);
+      // Kolom TRANSAKSI - di tengah
+      doc.text("TRANSAKSI", margin + contentWidth * 0.7, yPosition + 7, {
+        align: "center",
+      });
+      // Kolom TOTAL - di kanan
+      doc.text("TOTAL", pageWidth - margin - 5, yPosition + 7, {
+        align: "right",
+      });
+
+      yPosition += 12;
+
+      // Data Rows
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
 
-      stats.forEach((stat, index) => {
-        // Cek jika perlu page baru
+      validLast7Days.forEach((day, index) => {
         if (yPosition > 250) {
           doc.addPage();
-          yPosition = 20;
+          yPosition = 30;
+          // Header ulang di halaman baru
+          doc.setFillColor(59, 130, 246);
+          doc.rect(margin, yPosition, contentWidth, 10, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(255, 255, 255);
+          doc.text("TANGGAL", margin + 10, yPosition + 7);
+          doc.text("TRANSAKSI", margin + contentWidth * 0.7, yPosition + 7, {
+            align: "center",
+          });
+          doc.text("TOTAL", pageWidth - margin - 5, yPosition + 7, {
+            align: "right",
+          });
+          yPosition += 12;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(0, 0, 0);
         }
 
-        doc.text(`${stat.label}:`, margin, yPosition);
-        doc.text(stat.value, pageWidth - margin, yPosition, { align: "right" });
-        yPosition += 7;
+        // Background alternatif
+        if (index % 2 === 0) {
+          doc.setFillColor(249, 250, 251);
+          doc.rect(margin, yPosition - 3, contentWidth, 8, "F");
+        }
+
+        doc.text(day.tanggal, margin + 10, yPosition + 2);
+        doc.text(
+          day.jumlah.toString(),
+          margin + contentWidth * 0.7,
+          yPosition + 2,
+          { align: "center" }
+        );
+        doc.text(
+          rupiahFormatter(day.total),
+          pageWidth - margin - 5,
+          yPosition + 2,
+          { align: "right" }
+        );
+
+        yPosition += 8;
+      });
+
+      // Total Row
+      if (yPosition > 240) {
+        doc.addPage();
+        yPosition = 30;
+      }
+
+      yPosition += 5;
+      const totalJumlah = validLast7Days.reduce(
+        (sum, day) => sum + day.jumlah,
+        0
+      );
+      const totalHari = validLast7Days.reduce(
+        (sum, day) => sum + day.total,
+        0
+      );
+
+      doc.setFillColor(219, 234, 254);
+      doc.rect(margin, yPosition, contentWidth, 10, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 64, 175);
+
+      doc.text("TOTAL", margin + 10, yPosition + 7);
+      doc.text(
+        totalJumlah.toString(),
+        margin + contentWidth * 0.7,
+        yPosition + 7,
+        { align: "center" }
+      );
+      doc.text(
+        rupiahFormatter(totalHari),
+        pageWidth - margin - 5,
+        yPosition + 7,
+        { align: "right" }
+      );
+
+      yPosition += 15;
+    }
+
+    // ===== METODE PEMBAYARAN =====
+    const validPaymentMethods = paymentMethods.filter(
+      (method) => method && method.value > 0
+    );
+
+    if (validPaymentMethods.length > 0) {
+      if (yPosition > 200) {
+        doc.addPage();
+        yPosition = 30;
+      }
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(139, 92, 246); // Purple
+      doc.text("METODE PEMBAYARAN", margin, yPosition);
+      yPosition += 8;
+
+      // Garis bawah judul
+      doc.setDrawColor(139, 92, 246);
+      doc.line(margin, yPosition, margin + 100, yPosition);
+      yPosition += 12;
+
+      // Header Tabel
+      doc.setFillColor(139, 92, 246);
+      doc.rect(margin, yPosition, contentWidth, 10, "F");
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      
+      // Kolom METODE PEMBAYARAN - lebih lebar
+      doc.text("METODE PEMBAYARAN", margin + 10, yPosition + 7);
+      // Kolom TOTAL - di tengah-kanan
+      doc.text("TOTAL", margin + contentWidth * 0.6, yPosition + 7, {
+        align: "right",
+      });
+      // Kolom TRANSAKSI - di kanan
+      doc.text("TRANSAKSI", pageWidth - margin - 5, yPosition + 7, {
+        align: "right",
+      });
+
+      yPosition += 12;
+
+      // Data Rows
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
+
+      validPaymentMethods.forEach((method, index) => {
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 30;
+          // Header ulang di halaman baru
+          doc.setFillColor(139, 92, 246);
+          doc.rect(margin, yPosition, contentWidth, 10, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(255, 255, 255);
+          doc.text("METODE PEMBAYARAN", margin + 10, yPosition + 7);
+          doc.text("TOTAL", margin + contentWidth * 0.6, yPosition + 7, {
+            align: "right",
+          });
+          doc.text("TRANSAKSI", pageWidth - margin - 5, yPosition + 7, {
+            align: "right",
+          });
+          yPosition += 12;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(0, 0, 0);
+        }
+
+        // Background alternatif
+        if (index % 2 === 0) {
+          doc.setFillColor(245, 243, 255);
+          doc.rect(margin, yPosition - 3, contentWidth, 8, "F");
+        }
+
+        doc.text(method.name, margin + 10, yPosition + 2);
+        doc.text(
+          rupiahFormatter(method.value),
+          margin + contentWidth * 0.6,
+          yPosition + 2,
+          { align: "right" }
+        );
+        doc.text(
+          `${method.count} transaksi`,
+          pageWidth - margin - 5,
+          yPosition + 2,
+          { align: "right" }
+        );
+
+        yPosition += 8;
       });
 
       yPosition += 10;
-
-      // Data 7 Hari Terakhir - dengan validasi data yang ketat
-      const validLast7Days = last7Days.filter(
-        (day) =>
-          day &&
-          typeof day.tanggal === "string" &&
-          typeof day.jumlah === "number" &&
-          typeof day.total === "number" &&
-          day.total > 0
-      );
-
-      if (validLast7Days.length > 0) {
-        // Cek jika perlu page baru
-        if (yPosition > 200) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("7 HARI TERAKHIR", margin, yPosition);
-        yPosition += 8;
-
-        // Pastikan data valid untuk tabel
-        const tableData = validLast7Days.map((day) => {
-          // Validasi setiap field
-          const tanggal =
-            day.tanggal && typeof day.tanggal === "string"
-              ? day.tanggal
-              : "Tanggal tidak valid";
-          const jumlah =
-            typeof day.jumlah === "number" ? day.jumlah.toString() : "0";
-          const total =
-            typeof day.total === "number"
-              ? rupiahFormatter(day.total).replace("Rp", "Rp ")
-              : "Rp 0";
-
-          return [tanggal, jumlah, total];
-        });
-
-        // Tambah total hanya jika ada data valid
-        if (tableData.length > 0) {
-          const totalJumlah = validLast7Days.reduce(
-            (sum, day) => sum + (day.jumlah || 0),
-            0
-          );
-          const totalHari = validLast7Days.reduce(
-            (sum, day) => sum + (day.total || 0),
-            0
-          );
-
-          tableData.push([
-            "TOTAL",
-            totalJumlah.toString(),
-            rupiahFormatter(totalHari).replace("Rp", "Rp "),
-          ]);
-
-          console.log("Data tabel 7 hari:", tableData);
-
-          // Gunakan try-catch untuk autoTable
-          try {
-            doc.autoTable({
-              startY: yPosition,
-              head: [["Tanggal", "Jumlah Transaksi", "Total Penjualan"]],
-              body: tableData,
-              margin: { left: margin, right: margin },
-              styles: {
-                fontSize: 9,
-                cellPadding: 3,
-                lineColor: [200, 200, 200],
-                lineWidth: 0.1,
-              },
-              headStyles: {
-                fillColor: [34, 197, 94],
-                textColor: [255, 255, 255],
-                fontStyle: "bold",
-              },
-              alternateRowStyles: {
-                fillColor: [245, 245, 245],
-              },
-              footStyles: {
-                fillColor: [240, 249, 235],
-                fontStyle: "bold",
-              },
-            });
-
-            yPosition = doc.lastAutoTable.finalY + 10;
-          } catch (tableError) {
-            console.error("Error membuat tabel 7 hari:", tableError);
-            // Skip tabel jika error dan lanjutkan
-            yPosition += 10;
-          }
-        }
-      }
-
-      // Data Transaksi Hari Ini - dengan validasi data yang ketat
-      const validChosenDayData = chosenDayData.filter(
-        (tx) => tx && tx.id && typeof getTransactionTotal(tx) === "number"
-      );
-
-      if (validChosenDayData.length > 0) {
-        if (yPosition > 180) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text(
-          `TRANSAKSI ${format(new Date(selectedDate), "dd/MM/yyyy")}`,
-          margin,
-          yPosition
-        );
-        yPosition += 8;
-
-        // Pastikan data valid untuk tabel
-        const transactionData = validChosenDayData.map((tx) => {
-          const txDate = getTransactionDate(tx);
-          const totalItems = tx.items
-            ? tx.items.reduce((sum, item) => sum + (item.qty || 0), 0)
-            : 0;
-
-          // Validasi setiap field
-          const waktu = txDate ? format(txDate, "HH:mm") : "00:00";
-          const idTransaksi = tx.id ? `${tx.id.substring(0, 8)}...` : "N/A";
-          const total =
-            typeof getTransactionTotal(tx) === "number"
-              ? rupiahFormatter(getTransactionTotal(tx)).replace("Rp", "Rp ")
-              : "Rp 0";
-          const metodeBayar =
-            tx.paymentMethod && typeof tx.paymentMethod === "string"
-              ? tx.paymentMethod
-              : "Tunai";
-          const jumlahItem =
-            typeof totalItems === "number" ? totalItems.toString() : "0";
-
-          return [waktu, idTransaksi, total, metodeBayar, jumlahItem];
-        });
-
-        console.log("Data tabel transaksi:", transactionData);
-
-        try {
-          doc.autoTable({
-            startY: yPosition,
-            head: [
-              ["Waktu", "ID Transaksi", "Total", "Metode Bayar", "Jumlah Item"],
-            ],
-            body: transactionData,
-            margin: { left: margin, right: margin },
-            styles: {
-              fontSize: 8,
-              cellPadding: 2,
-              lineColor: [200, 200, 200],
-              lineWidth: 0.1,
-            },
-            headStyles: {
-              fillColor: [59, 130, 246],
-              textColor: [255, 255, 255],
-              fontStyle: "bold",
-            },
-            alternateRowStyles: {
-              fillColor: [245, 245, 245],
-            },
-            columnStyles: {
-              0: { cellWidth: 20 }, // Waktu
-              1: { cellWidth: 25 }, // ID Transaksi
-              2: { cellWidth: 30 }, // Total
-              3: { cellWidth: 25 }, // Metode Bayar
-              4: { cellWidth: 20 }, // Jumlah Item
-            },
-          });
-
-          yPosition = doc.lastAutoTable.finalY + 10;
-        } catch (tableError) {
-          console.error("Error membuat tabel transaksi:", tableError);
-          yPosition += 10;
-        }
-      }
-
-      // Metode Pembayaran
-      const validPaymentMethods = paymentMethods.filter(
-        (method) =>
-          method &&
-          method.name &&
-          typeof method.value === "number" &&
-          method.value > 0
-      );
-
-      if (validPaymentMethods.length > 0) {
-        if (yPosition > 150) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("METODE PEMBAYARAN", margin, yPosition);
-        yPosition += 8;
-
-        // Pastikan data valid untuk tabel
-        const paymentData = validPaymentMethods.map((method) => {
-          const nama =
-            method.name && typeof method.name === "string"
-              ? method.name
-              : "Tidak diketahui";
-          const total =
-            typeof method.value === "number"
-              ? rupiahFormatter(method.value).replace("Rp", "Rp ")
-              : "Rp 0";
-          const count =
-            typeof method.count === "number"
-              ? `${method.count} transaksi`
-              : "0 transaksi";
-
-          return [nama, total, count];
-        });
-
-        console.log("Data tabel payment:", paymentData);
-
-        try {
-          doc.autoTable({
-            startY: yPosition,
-            head: [["Metode", "Total", "Jumlah Transaksi"]],
-            body: paymentData,
-            margin: { left: margin, right: margin },
-            styles: {
-              fontSize: 9,
-              cellPadding: 3,
-              lineColor: [200, 200, 200],
-              lineWidth: 0.1,
-            },
-            headStyles: {
-              fillColor: [139, 92, 246],
-              textColor: [255, 255, 255],
-              fontStyle: "bold",
-            },
-            alternateRowStyles: {
-              fillColor: [245, 245, 245],
-            },
-          });
-
-          yPosition = doc.lastAutoTable.finalY + 10;
-        } catch (tableError) {
-          console.error("Error membuat tabel payment:", tableError);
-          // Skip tabel jika error dan lanjutkan
-          yPosition += 10;
-        }
-      }
-
-      // Jika tidak ada data sama sekali, tampilkan pesan
-      if (yPosition <= 50) {
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text(
-          "Tidak ada data transaksi yang dapat ditampilkan",
-          pageWidth / 2,
-          yPosition + 20,
-          { align: "center" }
-        );
-      }
-
-      // Footer pada setiap halaman
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(
-          `Halaman ${i} dari ${pageCount} - Warung Kula`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: "center" }
-        );
-      }
-
-      // Simpan PDF
-      const fileName = `Laporan_Penjualan_${format(
-        new Date(),
-        "dd-MM-yyyy_HH-mm"
-      )}.pdf`;
-      console.log("✅ PDF berhasil dibuat, menyimpan sebagai:", fileName);
-      doc.save(fileName);
-    } catch (error) {
-      console.error("❌ Gagal mengekspor PDF:", error);
-      console.error("Error details:", error.message);
-      console.error("Error stack:", error.stack);
-
-      // Tampilkan pesan error yang lebih spesifik
-      let errorMessage = "Gagal mengekspor PDF. Silakan coba lagi.";
-
-      if (error.message.includes("autoTable")) {
-        errorMessage = "Error dalam membuat tabel. Data mungkin tidak valid.";
-      } else if (error.message.includes("jsPDF")) {
-        errorMessage = "Error library PDF. Pastikan browser mendukung.";
-      }
-
-      alert(errorMessage);
     }
-  };
+
+    // ===== FOOTER =====
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+
+      // Garis footer
+      doc.setDrawColor(226, 232, 240);
+      doc.line(
+        margin,
+        doc.internal.pageSize.getHeight() - 15,
+        pageWidth - margin,
+        doc.internal.pageSize.getHeight() - 15
+      );
+
+      // Text footer
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `Halaman ${i} dari ${pageCount} • Warung Kula • ${format(
+          new Date(),
+          "dd/MM/yyyy HH:mm"
+        )}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: "center" }
+      );
+    }
+
+    // ===== SIMPAN PDF =====
+    const fileName = `Laporan_Penjualan_${format(
+      new Date(),
+      "dd-MM-yyyy_HH-mm"
+    )}.pdf`;
+    console.log("✅ PDF berhasil dibuat, menyimpan sebagai:", fileName);
+    doc.save(fileName);
+  } catch (error) {
+    console.error("❌ Gagal mengekspor PDF:", error);
+    console.error("Error details:", error.message);
+    alert("Gagal mengekspor PDF. Silakan coba lagi.");
+  }
+};
 
   const DebugInfo = () => (
     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
